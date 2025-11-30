@@ -35,7 +35,7 @@
     <div id="root"></div>
 
     <!-- ========================================== -->
-    <!-- 🔐 FILE KEAMANAN EKSTERNAL 🔐              -->
+    <!-- 🔒 FILE KEAMANAN EKSTERNAL 🔒              -->
     <!-- ========================================== -->
     <script src="./auth.js"></script>
 
@@ -144,7 +144,7 @@
     "React JS",
     "Cinematography"
 ];
-                    // MARKER_END
+        // MARKER_END
 
         function GitHubModal({ isOpen, onClose, data }) {
             const [step, setStep] = useState(1); // 1: Form, 2: Loading, 3: Success, 4: Error
@@ -168,11 +168,11 @@
                         throw new Error("Data GitHub belum lengkap.");
                     }
 
-                    const filePath = 'index.html'; // Asumsi file bernama index.html
+                    const filePath = 'index.html';
                     const apiUrl = `https://api.github.com/repos/${creds.username}/${creds.repo}/contents/${filePath}?ref=${creds.branch}`;
 
-                    // 1. GET Current File (We need the SHA to update)
-                    // Add cache busting
+                    // 1. GET Current File
+                    setStatusMsg("Mengambil file dari GitHub...");
                     const getRes = await fetch(apiUrl + `&t=${new Date().getTime()}`, {
                         headers: { 
                             'Authorization': `token ${creds.token}`,
@@ -192,8 +192,9 @@
                     const currentContent = b64_to_utf8(fileData.content.replace(/\n/g, ''));
 
                     // 2. Prepare New Content
-                    setStatusMsg("Memproses data...");
+                    setStatusMsg("Memproses data baru...");
                     
+                    // Format data dengan indentasi yang benar
                     const newDataString = `
         const defaultProfile = ${JSON.stringify(data.profile, null, 4)};
 
@@ -204,20 +205,28 @@
         const defaultEducation = ${JSON.stringify(data.education, null, 4)};
 
         const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
-                    `;
+        `;
 
-                    // Gunakan Regex yang lebih fleksibel
-                    const regex = /(\/\/ MARKER_START)[\s\S]*?(\/\/ MARKER_END)/;
+                    // Cari marker dengan presisi tinggi
+                    const markerStart = '// MARKER_START';
+                    const markerEnd = '// MARKER_END';
                     
-                    if (!regex.test(currentContent)) {
-                        throw new Error("Gagal menemukan posisi data di file GitHub. Kode marker mungkin terhapus di file asli.");
+                    const startIndex = currentContent.indexOf(markerStart);
+                    const endIndex = currentContent.indexOf(markerEnd);
+                    
+                    if (startIndex === -1 || endIndex === -1) {
+                        throw new Error("Gagal menemukan marker di file GitHub. Pastikan file belum dimodifikasi secara manual.");
                     }
 
-                    const newFileContent = currentContent.replace(regex, `$1${newDataString}$2`);
+                    // Rekonstruksi file dengan data baru
+                    const beforeMarker = currentContent.substring(0, startIndex + markerStart.length);
+                    const afterMarker = currentContent.substring(endIndex);
+                    const newFileContent = beforeMarker + newDataString + afterMarker;
+                    
                     const encodedContent = utf8_to_b64(newFileContent);
 
                     // 3. PUT (Update) File
-                    setStatusMsg("Mengupload perubahan...");
+                    setStatusMsg("Mengupload perubahan ke GitHub...");
                     const putRes = await fetch(apiUrl, {
                         method: 'PUT',
                         headers: {
@@ -225,7 +234,7 @@
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            message: `Update portofolio otomatis (${new Date().toLocaleString()})`,
+                            message: `Update portofolio otomatis (${new Date().toLocaleString('id-ID')})`,
                             content: encodedContent,
                             sha: currentSha,
                             branch: creds.branch
@@ -611,7 +620,6 @@
                     {/* FULL WIDTH PROJECTS SECTION */}
                     <section id="projects" className="max-w-6xl mx-auto px-4 mt-20 mb-20">
                         {!activeCategory ? (
-                            // --- CATEGORY SELECTOR VIEW ---
                             <div className="space-y-8 animate-fade-in">
                                 <h3 className="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                                     Kategori Portofolio
@@ -640,7 +648,6 @@
                                 </div>
                             </div>
                         ) : (
-                            // --- SPECIFIC CATEGORY VIEW ---
                             <div className="space-y-8 animate-fade-in">
                                 <div className="flex items-center justify-between mb-8 border-b border-slate-800 pb-4">
                                     <div className="flex items-center gap-4">
@@ -669,7 +676,6 @@
                                     {projects
                                         .filter(p => p.category === activeCategory)
                                         .map((project) => {
-                                            // Extract video info for this specific project
                                             const { type: videoType, id: videoId } = getVideoInfo(project.videoUrl);
                                             
                                             return (
