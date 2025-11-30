@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- 1. ANTI-CACHE HEADERS (Memaksa browser mengambil data terbaru) -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>Portofolio Kreatif Saya</title>
     
     <!-- Tailwind CSS -->
@@ -27,7 +33,7 @@
         .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
         body { background-color: #020617; }
         /* Loading Spinner */
-        .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .loader { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 16px; height: 16px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -35,7 +41,7 @@
     <div id="root"></div>
 
     <!-- ========================================== -->
-    <!-- 🔒 FILE KEAMANAN EKSTERNAL 🔒              -->
+    <!-- 🔐 FILE KEAMANAN EKSTERNAL 🔐              -->
     <!-- ========================================== -->
     <script src="./auth.js"></script>
 
@@ -46,7 +52,7 @@
         import { 
             Edit, Save, Plus, Trash2, ExternalLink, Youtube, Image as ImageIcon, 
             X, Check, Mail, Phone, Briefcase, GraduationCap, Cpu, 
-            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Code, Github, Upload
+            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Code, Github, Upload, RefreshCw
         } from 'lucide-react';
 
         // --- Helper: Video Detection ---
@@ -59,143 +65,97 @@
             return { type: null, id: null };
         };
 
-        // --- Helper: Base64 Encoding for UTF-8 (GitHub API Requirement) ---
-        function utf8_to_b64(str) {
-            return window.btoa(unescape(encodeURIComponent(str)));
-        }
-        function b64_to_utf8(str) {
-            return decodeURIComponent(escape(window.atob(str)));
-        }
+        // --- Helper: Base64 Encoding ---
+        function utf8_to_b64(str) { return window.btoa(unescape(encodeURIComponent(str))); }
+        function b64_to_utf8(str) { return decodeURIComponent(escape(window.atob(str))); }
 
         // --- Initial Data ---
         // MARKER_START
         const defaultProfile = {
-    "name": "Muhammad Azis Faturrohman",
-    "title": "Videografer, Desain Grafis, Photografer",
-    "bio": "saya adalah",
-    "avatar": "https://cdn.discordapp.com/attachments/1016033496210358422/1444720372745371850/IMG_6824.JPG?ex=692dbc32&is=692c6ab2&hm=3b0d9d7afcbdcc8e597e59ec01bd2c8ddbdf60aaef88499374384a62302410d5&",
-    "email": "work@alexcreator.com",
-    "phone": "+62 812 3456 7890",
-    "location": "Jakarta, Indonesia"
-};
+            name: "Alex Creator",
+            title: "Visual Artist & Developer",
+            bio: "Menggabungkan seni visual dan teknologi. Spesialis dalam fotografi sinematik, desain antarmuka modern, dan pengembangan web interaktif.",
+            avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
+            email: "work@alexcreator.com",
+            phone: "+62 812 3456 7890",
+            location: "Jakarta, Indonesia"
+        };
 
         const defaultProjects = [
-    {
-        "id": 1,
-        "category": "design",
-        "title": "Brand Identity: Kopi Senja",
-        "description": "Desain logo dan packaging untuk startup kopi lokal dengan nuansa modern minimalis.",
-        "image": "https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        "type": "image",
-        "link": "#"
-    },
-    {
-        "id": 2,
-        "category": "videography",
-        "title": "Cinematic Travel Vlog",
-        "description": "Dokumentasi perjalanan wisata Bali dengan color grading sinematik.",
-        "videoUrl": "https://www.youtube.com/watch?v=LXb3EKWsInQ",
-        "type": "video",
-        "link": "#"
-    },
-    {
-        "id": 3,
-        "category": "photography",
-        "title": "Urban Street Photography",
-        "description": "Koleksi foto jalanan Jakarta di malam hari dengan teknik long exposure.",
-        "image": "https://images.unsplash.com/photo-1517789729358-1936c8882046?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        "type": "image",
-        "link": "#"
-    }
-];
+            {
+                id: 1,
+                category: 'design',
+                title: "Brand Identity: Kopi Senja",
+                description: "Desain logo dan packaging untuk startup kopi lokal dengan nuansa modern minimalis.",
+                image: "https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                type: "image",
+                link: "#"
+            },
+            {
+                id: 2,
+                category: 'videography',
+                title: "Cinematic Travel Vlog",
+                description: "Dokumentasi perjalanan wisata Bali dengan color grading sinematik.",
+                videoUrl: "https://www.youtube.com/watch?v=LXb3EKWsInQ", 
+                type: "video",
+                link: "#"
+            },
+            {
+                id: 3,
+                category: 'photography',
+                title: "Urban Street Photography",
+                description: "Koleksi foto jalanan Jakarta di malam hari dengan teknik long exposure.",
+                image: "https://images.unsplash.com/photo-1517789729358-1936c8882046?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                type: "image",
+                link: "#"
+            }
+        ];
 
         const defaultExperience = [
-    {
-        "id": 1,
-        "role": "Senior Visual Designer",
-        "company": "Creative Studio Ind",
-        "period": "2022 - Sekarang",
-        "description": "Bertanggung jawab atas art direction untuk klien korporat dan manajemen tim kreatif."
-    },
-    {
-        "id": 2,
-        "role": "Freelance Photographer",
-        "company": "Self Employed",
-        "period": "2019 - 2022",
-        "description": "Mengerjakan proyek fotografi komersial, pernikahan, dan event dokumentasi."
-    }
-];
+            {
+                id: 1,
+                role: "Senior Visual Designer",
+                company: "Creative Studio Ind",
+                period: "2022 - Sekarang",
+                description: "Bertanggung jawab atas art direction untuk klien korporat dan manajemen tim kreatif."
+            }
+        ];
 
         const defaultEducation = [
-    {
-        "id": 1,
-        "degree": "S1 Desain Komunikasi Visual",
-        "school": "Institut Kesenian Jakarta",
-        "period": "2015 - 2019",
-        "description": "Fokus pada multimedia dan fotografi digital."
-    }
-];
+            {
+                id: 1,
+                degree: "S1 Desain Komunikasi Visual",
+                school: "Institut Kesenian Jakarta",
+                period: "2015 - 2019",
+                description: "Fokus pada multimedia dan fotografi digital."
+            }
+        ];
 
-        const defaultSkills = [
-    "Adobe Premiere",
-    "Photoshop",
-    "Lightroom",
-    "Figma",
-    "React JS",
-    "Cinematography"
-];
+        const defaultSkills = ["Adobe Premiere", "Photoshop", "Lightroom", "Figma", "React JS", "Cinematography"];
         // MARKER_END
 
-        function GitHubModal({ isOpen, onClose, data }) {
-            const [step, setStep] = useState(1); // 1: Form, 2: Loading, 3: Success, 4: Error
-            const [creds, setCreds] = useState({ username: '', repo: '', token: '', branch: 'main' });
-            const [statusMsg, setStatusMsg] = useState('');
+        // --- LOGIKA UPLOAD GITHUB TERPUSAT ---
+        const uploadToGitHub = async (creds, data) => {
+            if(!creds.username || !creds.repo || !creds.token) {
+                throw new Error("Kredensial GitHub belum lengkap. Silakan atur di tombol 'Simpan ke GitHub'.");
+            }
 
-            useEffect(() => {
-                const savedCreds = localStorage.getItem('gh_creds');
-                if (savedCreds) setCreds(JSON.parse(savedCreds));
-            }, []);
+            const filePath = 'index.html'; 
+            const apiUrl = `https://api.github.com/repos/${creds.username}/${creds.repo}/contents/${filePath}?ref=${creds.branch || 'main'}`;
 
-            if (!isOpen) return null;
+            // 1. GET Current File (SHA)
+            const getRes = await fetch(apiUrl + `&t=${new Date().getTime()}`, { // Cache Busting
+                headers: { 'Authorization': `token ${creds.token}`, 'Accept': 'application/vnd.github.v3+json' },
+                cache: 'no-store'
+            });
 
-            const handleSave = async () => {
-                setStep(2);
-                setStatusMsg("Menghubungkan ke GitHub...");
-                localStorage.setItem('gh_creds', JSON.stringify(creds));
+            if (!getRes.ok) throw new Error(getRes.status === 404 ? "Repository tidak ditemukan." : "Gagal mengambil data dari GitHub.");
+            
+            const fileData = await getRes.json();
+            const currentContent = b64_to_utf8(fileData.content.replace(/\n/g, ''));
 
-                try {
-                    if(!creds.username || !creds.repo || !creds.token) {
-                        throw new Error("Data GitHub belum lengkap.");
-                    }
-
-                    const filePath = 'index.html';
-                    const apiUrl = `https://api.github.com/repos/${creds.username}/${creds.repo}/contents/${filePath}?ref=${creds.branch}`;
-
-                    // 1. GET Current File
-                    setStatusMsg("Mengambil file dari GitHub...");
-                    const getRes = await fetch(apiUrl + `&t=${new Date().getTime()}`, {
-                        headers: { 
-                            'Authorization': `token ${creds.token}`,
-                            'Accept': 'application/vnd.github.v3+json'
-                        },
-                        cache: 'no-store'
-                    });
-
-                    if (!getRes.ok) {
-                        if(getRes.status === 404) throw new Error("File index.html tidak ditemukan di repository. Pastikan nama repo benar.");
-                        if(getRes.status === 401) throw new Error("Token GitHub salah atau tidak memiliki izin.");
-                        throw new Error(`Gagal mengambil file (${getRes.status}). Cek koneksi internet.`);
-                    }
-                    
-                    const fileData = await getRes.json();
-                    const currentSha = fileData.sha;
-                    const currentContent = b64_to_utf8(fileData.content.replace(/\n/g, ''));
-
-                    // 2. Prepare New Content
-                    setStatusMsg("Memproses data baru...");
-                    
-                    // Format data dengan indentasi yang benar
-                    const newDataString = `
+            // 2. Prepare Data
+            const newDataString = `
         const defaultProfile = ${JSON.stringify(data.profile, null, 4)};
 
         const defaultProjects = ${JSON.stringify(data.projects, null, 4)};
@@ -205,129 +165,70 @@
         const defaultEducation = ${JSON.stringify(data.education, null, 4)};
 
         const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
-        `;
+            `;
 
-                    // Cari marker dengan presisi tinggi
-                    const markerStart = '// MARKER_START';
-                    const markerEnd = '// MARKER_END';
-                    
-                    const startIndex = currentContent.indexOf(markerStart);
-                    const endIndex = currentContent.indexOf(markerEnd);
-                    
-                    if (startIndex === -1 || endIndex === -1) {
-                        throw new Error("Gagal menemukan marker di file GitHub. Pastikan file belum dimodifikasi secara manual.");
-                    }
+            const regex = /(\/\/ MARKER_START)[\s\S]*?(\/\/ MARKER_END)/;
+            if (!regex.test(currentContent)) throw new Error("Marker data rusak/hilang di file GitHub.");
 
-                    // Rekonstruksi file dengan data baru
-                    const beforeMarker = currentContent.substring(0, startIndex + markerStart.length);
-                    const afterMarker = currentContent.substring(endIndex);
-                    const newFileContent = beforeMarker + newDataString + afterMarker;
-                    
-                    const encodedContent = utf8_to_b64(newFileContent);
+            const newFileContent = currentContent.replace(regex, `$1${newDataString}$2`);
 
-                    // 3. PUT (Update) File
-                    setStatusMsg("Mengupload perubahan ke GitHub...");
-                    const putRes = await fetch(apiUrl, {
-                        method: 'PUT',
-                        headers: {
-                            'Authorization': `token ${creds.token}`,
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            message: `Update portofolio otomatis (${new Date().toLocaleString('id-ID')})`,
-                            content: encodedContent,
-                            sha: currentSha,
-                            branch: creds.branch
-                        })
-                    });
+            // 3. PUT (Update) File
+            const putRes = await fetch(apiUrl, {
+                method: 'PUT',
+                headers: { 'Authorization': `token ${creds.token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: `Auto-update portfolio (${new Date().toLocaleString()})`,
+                    content: utf8_to_b64(newFileContent),
+                    sha: fileData.sha,
+                    branch: creds.branch || 'main'
+                })
+            });
 
-                    if (!putRes.ok) {
-                        const errInfo = await putRes.json();
-                        throw new Error("Gagal upload: " + (errInfo.message || "Unknown error"));
-                    }
+            if (!putRes.ok) throw new Error("Gagal mengupload ke GitHub.");
+            return true;
+        };
 
-                    setStep(3); // Success
-                } catch (error) {
-                    console.error(error);
-                    setStatusMsg(error.message);
-                    setStep(4); // Error
-                }
+        function GitHubSettingsModal({ isOpen, onClose, onSave }) {
+            const [creds, setCreds] = useState({ username: '', repo: '', token: '', branch: 'main' });
+
+            useEffect(() => {
+                const saved = localStorage.getItem('gh_creds');
+                if (saved) setCreds(JSON.parse(saved));
+            }, [isOpen]);
+
+            const handleSave = () => {
+                localStorage.setItem('gh_creds', JSON.stringify(creds));
+                onSave(creds);
+                onClose();
             };
+
+            if (!isOpen) return null;
 
             return (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
                     <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl">
-                        
-                        {step === 1 && (
-                            <>
-                                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                    <Github size={24}/> Simpan ke GitHub
-                                </h3>
-                                <p className="text-sm text-slate-400 mb-4">
-                                    Masukkan detail repository Anda untuk menyimpan perubahan secara permanen.
-                                </p>
-                                <div className="space-y-3">
-                                    <input placeholder="GitHub Username" value={creds.username} onChange={e=>setCreds({...creds, username:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
-                                    <input placeholder="Repository Name (contoh: portofolio-saya)" value={creds.repo} onChange={e=>setCreds({...creds, repo:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
-                                    <input placeholder="Branch (default: main)" value={creds.branch} onChange={e=>setCreds({...creds, branch:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
-                                    <div>
-                                        <input type="password" placeholder="Personal Access Token (Repo Scope)" value={creds.token} onChange={e=>setCreds({...creds, token:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
-                                        <a href="https://github.com/settings/tokens" target="_blank" className="text-xs text-blue-400 hover:underline block mt-1">Buat token di sini (Pilih 'Classic', centang 'repo')</a>
-                                    </div>
-                                </div>
-                                <div className="mt-6 flex justify-end gap-2">
-                                    <button onClick={onClose} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded">Batal</button>
-                                    <button onClick={handleSave} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-bold">Upload</button>
-                                </div>
-                            </>
-                        )}
-
-                        {step === 2 && (
-                            <div className="text-center py-8">
-                                <div className="loader mx-auto mb-4"></div>
-                                <p className="text-white animate-pulse">{statusMsg}</p>
-                            </div>
-                        )}
-
-                        {step === 3 && (
-                            <div className="text-center py-8">
-                                <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Check size={32}/>
-                                </div>
-                                <h4 className="text-xl font-bold text-white mb-2">Berhasil Disimpan!</h4>
-                                <div className="bg-blue-900/30 border border-blue-800 p-4 rounded-lg text-sm text-blue-200 text-left mb-6">
-                                    <p className="font-bold mb-2">⚠️ PENTING: BACA INI</p>
-                                    <ul className="list-disc pl-4 space-y-1">
-                                        <li>Perubahan sudah dikirim ke GitHub.</li>
-                                        <li>GitHub butuh waktu <strong>1-5 menit</strong> untuk memperbarui website live.</li>
-                                        <li>Jika di HP belum berubah, coba <strong>Clear Cache</strong> browser HP atau buka di Tab Penyamaran (Incognito).</li>
-                                    </ul>
-                                </div>
-                                <button onClick={onClose} className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded">Tutup</button>
-                            </div>
-                        )}
-
-                        {step === 4 && (
-                            <div className="text-center py-4">
-                                <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <X size={32}/>
-                                </div>
-                                <h4 className="text-xl font-bold text-white mb-2">Gagal</h4>
-                                <p className="text-red-300 mb-6 text-sm">{statusMsg}</p>
-                                <button onClick={()=>setStep(1)} className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded">Coba Lagi</button>
-                            </div>
-                        )}
+                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Github size={24}/> Pengaturan GitHub</h3>
+                        <p className="text-sm text-slate-400 mb-4">Masukkan data repository agar website bisa terupdate otomatis.</p>
+                        <div className="space-y-3">
+                            <input placeholder="GitHub Username" value={creds.username} onChange={e=>setCreds({...creds, username:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm"/>
+                            <input placeholder="Repository Name (cth: portofolio-saya)" value={creds.repo} onChange={e=>setCreds({...creds, repo:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm"/>
+                            <input placeholder="Branch (default: main)" value={creds.branch} onChange={e=>setCreds({...creds, branch:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm"/>
+                            <input type="password" placeholder="Token (ghp_...)" value={creds.token} onChange={e=>setCreds({...creds, token:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm"/>
+                        </div>
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button onClick={onClose} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded">Batal</button>
+                            <button onClick={handleSave} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-bold">Simpan Pengaturan</button>
+                        </div>
                     </div>
                 </div>
             );
         }
 
         function App() {
-            // --- States ---
             const [isAuthenticated, setIsAuthenticated] = useState(false);
             const [isEditing, setIsEditing] = useState(false);
-            const [isMounted, setIsMounted] = useState(false);
-            const [showGitHubModal, setShowGitHubModal] = useState(false);
+            const [showGHSettings, setShowGHSettings] = useState(false);
+            const [isSaving, setIsSaving] = useState(false);
             const [activeCategory, setActiveCategory] = useState(null); 
             
             // Data States
@@ -350,7 +251,6 @@
                 load('pf_experience_v2', setExperience);
                 load('pf_education_v2', setEducation);
                 load('pf_skills_v2', setSkills);
-                setIsMounted(true);
                 
                 if (window.isLoggedIn && window.isLoggedIn()) {
                     setIsAuthenticated(true);
@@ -358,60 +258,62 @@
             }, []);
 
             useEffect(() => {
-                if (isMounted) {
-                    localStorage.setItem('pf_profile_v2', JSON.stringify(profile));
-                    localStorage.setItem('pf_projects_v2', JSON.stringify(projects));
-                    localStorage.setItem('pf_experience_v2', JSON.stringify(experience));
-                    localStorage.setItem('pf_education_v2', JSON.stringify(education));
-                    localStorage.setItem('pf_skills_v2', JSON.stringify(skills));
-                }
-            }, [profile, projects, experience, education, skills, isMounted]);
+                localStorage.setItem('pf_profile_v2', JSON.stringify(profile));
+                localStorage.setItem('pf_projects_v2', JSON.stringify(projects));
+                localStorage.setItem('pf_experience_v2', JSON.stringify(experience));
+                localStorage.setItem('pf_education_v2', JSON.stringify(education));
+                localStorage.setItem('pf_skills_v2', JSON.stringify(skills));
+            }, [profile, projects, experience, education, skills]);
 
-            // --- Handlers ---
+            // --- AUTO SAVE FUNCTION ---
+            const handleAutoSave = async () => {
+                const savedCreds = localStorage.getItem('gh_creds');
+                if (!savedCreds) {
+                    setShowGHSettings(true);
+                    return;
+                }
+
+                setIsSaving(true);
+                try {
+                    await uploadToGitHub(JSON.parse(savedCreds), { profile, projects, experience, education, skills });
+                    alert("✅ Berhasil disimpan ke GitHub!\n\nPerubahan akan muncul di HP dalam 1-5 menit (tergantung GitHub).\nJika belum muncul, bersihkan cache browser di HP Anda.");
+                    setIsEditing(false); // Keluar mode edit setelah simpan
+                } catch (err) {
+                    alert("❌ Gagal menyimpan: " + err.message);
+                    if(err.message.includes("Kredensial")) setShowGHSettings(true);
+                } finally {
+                    setIsSaving(false);
+                }
+            };
+
             const handleAuthAction = () => {
                 if (isAuthenticated) {
-                    if(confirm("Apakah Anda yakin ingin keluar dari mode Admin?")) {
+                    if(confirm("Yakin ingin Logout?")) {
                         window.doLogout();
                         setIsAuthenticated(false);
                         setIsEditing(false);
-                        alert("Berhasil Logout.");
                     }
                 } else {
                     window.location.href = "login.html";
                 }
             };
 
+            // Generic handlers
             const handleProfileChange = (e) => setProfile({ ...profile, [e.target.name]: e.target.value });
-            
-            const updateItem = (setter, list, id, field, value) => {
-                setter(list.map(item => item.id === id ? { ...item, [field]: value } : item));
-            };
-
-            const deleteItem = (setter, list, id) => {
-                if (confirm("Hapus item ini?")) setter(list.filter(item => item.id !== id));
-            };
-
-            const addItem = (setter, list, template) => {
-                setter([...list, { ...template, id: Date.now() }]);
-            };
-
-            const addExperience = () => addItem(setExperience, experience, { role: "Peran Baru", company: "Perusahaan", period: "Tahun", description: "Deskripsi..." });
-            const addEducation = () => addItem(setEducation, education, { degree: "Gelar", school: "Sekolah", period: "Tahun", description: "Deskripsi..." });
+            const updateItem = (setter, list, id, field, value) => setter(list.map(item => item.id === id ? { ...item, [field]: value } : item));
+            const deleteItem = (setter, list, id) => confirm("Hapus item?") && setter(list.filter(item => item.id !== id));
+            const addItem = (setter, list, template) => setter([...list, { ...template, id: Date.now() }]);
             
             const addProject = () => {
                 if (!activeCategory) return;
                 const defaultType = activeCategory === 'videography' ? 'video' : 'image';
-                const defaultImage = activeCategory === 'videography' ? '' : 'https://via.placeholder.com/600x400';
-                const newProj = { 
+                setProjects([...projects, { 
                     id: Date.now(), category: activeCategory, title: "Proyek Baru", 
-                    description: "Deskripsi...", image: defaultImage, videoUrl: "", type: defaultType, link: "#" 
-                };
-                setProjects([...projects, newProj]);
+                    description: "Deskripsi...", image: "", videoUrl: "", type: defaultType, link: "#" 
+                }]);
             };
 
-            const addTag = (setter, list, input, setInput) => {
-                if (input.trim()) { setter([...list, input.trim()]); setInput(""); }
-            };
+            const addTag = (setter, list, input, setInput) => { if (input.trim()) { setter([...list, input.trim()]); setInput(""); } };
             const removeTag = (setter, list, index) => setter(list.filter((_, i) => i !== index));
 
             const categories = [
@@ -425,10 +327,10 @@
             return (
                 <div className="min-h-screen text-slate-100 font-sans selection:bg-cyan-500 selection:text-white pb-20">
                     
-                    <GitHubModal 
-                        isOpen={showGitHubModal} 
-                        onClose={() => setShowGitHubModal(false)} 
-                        data={{ profile, projects, experience, education, skills }}
+                    <GitHubSettingsModal 
+                        isOpen={showGHSettings} 
+                        onClose={() => setShowGHSettings(false)} 
+                        onSave={(creds) => alert("Pengaturan tersimpan. Silakan klik 'Simpan & Upload' lagi.")}
                     />
 
                     {/* Navbar */}
@@ -440,20 +342,23 @@
                             
                             {isAuthenticated && (
                                 <div className="flex gap-2">
-                                    <button 
-                                        onClick={() => setShowGitHubModal(true)}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-slate-800 hover:bg-slate-700 text-white transition-all border border-slate-700"
-                                        title="Simpan permanen ke GitHub"
-                                    >
-                                        <Upload size={16} /> <span className="hidden sm:inline">Simpan ke GitHub</span>
-                                    </button>
-
-                                    <button 
-                                        onClick={() => setIsEditing(!isEditing)}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isEditing ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}
-                                    >
-                                        {isEditing ? <><Save size={16} /> Selesai</> : <><Edit size={16} /> Edit Mode</>}
-                                    </button>
+                                    {isEditing ? (
+                                        <button 
+                                            onClick={handleAutoSave}
+                                            disabled={isSaving}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isSaving ? 'bg-slate-700 cursor-wait' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                                        >
+                                            {isSaving ? <div className="loader"></div> : <Save size={16} />}
+                                            {isSaving ? 'Mengupload...' : 'Simpan & Upload'}
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            onClick={() => setIsEditing(true)}
+                                            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+                                        >
+                                            <Edit size={16} /> Edit Mode
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -507,7 +412,6 @@
                     </header>
 
                     <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-12 mt-8">
-                        
                         {/* LEFT COLUMN: Skills */}
                         <aside className="space-y-12 lg:col-span-1">
                             <section className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
@@ -547,7 +451,7 @@
                                         <div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><Briefcase size={24}/></div>
                                         Pengalaman Kerja
                                     </h3>
-                                    {isEditing && <button onClick={addExperience} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
+                                    {isEditing && <button onClick={() => addItem(setExperience, experience, { role: "Peran Baru", company: "Perusahaan", period: "Tahun", description: "Deskripsi..." })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
                                 </div>
                                 <div className="space-y-8">
                                     {experience.map((exp) => (
@@ -586,7 +490,7 @@
                                         <div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><GraduationCap size={24}/></div>
                                         Riwayat Pendidikan
                                     </h3>
-                                    {isEditing && <button onClick={addEducation} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
+                                    {isEditing && <button onClick={() => addItem(setEducation, education, { degree: "Gelar", school: "Sekolah", period: "Tahun", description: "Deskripsi..." })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
                                 </div>
                                 <div className="space-y-6">
                                     {education.map((edu) => (
@@ -626,22 +530,15 @@
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     {categories.map((cat) => (
-                                        <button
-                                            key={cat.id}
-                                            onClick={() => setActiveCategory(cat.id)}
-                                            className="group relative h-64 rounded-2xl overflow-hidden border border-slate-800 hover:border-slate-600 transition-all text-left"
-                                        >
+                                        <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className="group relative h-64 rounded-2xl overflow-hidden border border-slate-800 hover:border-slate-600 transition-all text-left">
                                             <div className={`absolute inset-0 bg-gradient-to-br ${cat.color} opacity-10 group-hover:opacity-20 transition-opacity`}></div>
                                             <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px] group-hover:backdrop-blur-none transition-all"></div>
-                                            
                                             <div className="relative p-8 h-full flex flex-col items-center justify-center text-center space-y-4">
                                                 <div className="p-4 bg-slate-900 rounded-full border border-slate-700 group-hover:scale-110 transition-transform">
                                                     <cat.icon size={32} className="text-slate-200" />
                                                 </div>
                                                 <h4 className="text-2xl font-bold text-white group-hover:text-cyan-400 transition-colors">{cat.label}</h4>
-                                                <p className="text-sm text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
-                                                    {cat.desc}
-                                                </p>
+                                                <p className="text-sm text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">{cat.desc}</p>
                                             </div>
                                         </button>
                                     ))}
@@ -651,12 +548,7 @@
                             <div className="space-y-8 animate-fade-in">
                                 <div className="flex items-center justify-between mb-8 border-b border-slate-800 pb-4">
                                     <div className="flex items-center gap-4">
-                                        <button 
-                                            onClick={() => setActiveCategory(null)}
-                                            className="p-2 rounded-full hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
-                                        >
-                                            <ArrowLeft size={24} />
-                                        </button>
+                                        <button onClick={() => setActiveCategory(null)} className="p-2 rounded-full hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"><ArrowLeft size={24} /></button>
                                         <div>
                                             <h3 className="text-2xl font-bold text-white flex items-center gap-2">
                                                 {currentCategoryData?.icon && <currentCategoryData.icon size={24} className="text-cyan-500"/>}
@@ -677,29 +569,15 @@
                                         .filter(p => p.category === activeCategory)
                                         .map((project) => {
                                             const { type: videoType, id: videoId } = getVideoInfo(project.videoUrl);
-                                            
                                             return (
                                                 <div key={project.id} className="bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800 hover:border-cyan-500/50 transition-all group flex flex-col">
                                                     <div className="relative aspect-video bg-black">
                                                         {project.type === 'video' && videoId ? (
-                                                            <iframe
-                                                                className="w-full h-full"
-                                                                src={videoType === 'youtube' 
-                                                                    ? `https://www.youtube.com/embed/${videoId}` 
-                                                                    : `https://www.tiktok.com/embed/v2/${videoId}`
-                                                                }
-                                                                title={project.title}
-                                                                frameBorder="0"
-                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                allowFullScreen
-                                                            ></iframe>
+                                                            <iframe className="w-full h-full" src={videoType === 'youtube' ? `https://www.youtube.com/embed/${videoId}` : `https://www.tiktok.com/embed/v2/${videoId}`} title={project.title} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
                                                         ) : (
                                                             <img src={project.image} alt={project.title} className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://via.placeholder.com/600x400'}/>
                                                         )}
-                                                        
-                                                        {isEditing && (
-                                                            <button onClick={() => deleteItem(setProjects, projects, project.id)} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 z-10"><Trash2 size={16}/></button>
-                                                        )}
+                                                        {isEditing && <button onClick={() => deleteItem(setProjects, projects, project.id)} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 z-10"><Trash2 size={16}/></button>}
                                                     </div>
                                                     <div className="p-5 flex-1 flex flex-col">
                                                         {isEditing ? (
