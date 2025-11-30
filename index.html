@@ -32,10 +32,19 @@
     <div id="root"></div>
 
     <!-- ========================================== -->
-    <!-- 🔐 FILE KEAMANAN EKSTERNAL 🔐              -->
-    <!-- Memuat logika password dari auth.js        -->
+    <!-- 🔐 KONFIGURASI PASSWORD & KEAMANAN 🔐      -->
+    <!-- Edit password di bawah ini.                -->
     <!-- ========================================== -->
-    <script src="./auth.js"></script>
+    <script>
+        // GANTI "admin123" DENGAN PASSWORD BARU ANDA
+        const PASSWORD_ADMIN = "admin123";
+
+        // Fungsi verifikasi (Jangan diubah)
+        window.verifikasiPassword = function(input) {
+            return input === PASSWORD_ADMIN;
+        };
+    </script>
+    <!-- ========================================== -->
 
     <!-- Script Utama Aplikasi -->
     <script type="text/babel" data-type="module">
@@ -173,13 +182,10 @@
                 } else {
                     const password = prompt("Masukkan password admin:");
                     
-                    // MENGGUNAKAN GLOBAL FUNCTION DARI auth.js
-                    // Pastikan file auth.js sudah ada di folder yang sama
-                    if (window.verifikasiPassword && window.verifikasiPassword(password)) {
+                    // MENGGUNAKAN GLOBAL FUNCTION
+                    if (window.verifikasiPassword(password)) {
                         setIsAuthenticated(true);
                         alert("Mode Admin Aktif.");
-                    } else if (!window.verifikasiPassword) {
-                        alert("Error: File auth.js tidak ditemukan atau gagal dimuat.");
                     } else if (password !== null) {
                         alert("Password salah.");
                     }
@@ -546,7 +552,7 @@
             );
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
+        const root = createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>
