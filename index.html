@@ -26,6 +26,9 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
         body { background-color: #020617; }
+        /* Loading Spinner */
+        .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -43,28 +46,29 @@
         import { 
             Edit, Save, Plus, Trash2, ExternalLink, Youtube, Image as ImageIcon, 
             X, Check, Mail, Phone, Briefcase, GraduationCap, Cpu, 
-            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Code
+            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Code, Github, CloudUpload
         } from 'lucide-react';
 
-        // --- Helper: Video Detection (YouTube, Shorts, TikTok) ---
+        // --- Helper: Video Detection ---
         const getVideoInfo = (url) => {
             if (!url) return { type: null, id: null };
-
             const ytMatch = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/);
-            if (ytMatch && ytMatch[2].length === 11) {
-                return { type: 'youtube', id: ytMatch[2] };
-            }
-
+            if (ytMatch && ytMatch[2].length === 11) return { type: 'youtube', id: ytMatch[2] };
             const ttMatch = url.match(/tiktok\.com\/@.+\/video\/(\d+)/);
-            if (ttMatch && ttMatch[1]) {
-                return { type: 'tiktok', id: ttMatch[1] };
-            }
-
+            if (ttMatch && ttMatch[1]) return { type: 'tiktok', id: ttMatch[1] };
             return { type: null, id: null };
         };
 
-        // --- Initial Data (DATA AWAL) ---
-        // Data di bawah ini akan diganti oleh fitur Export jika Anda ingin mengubahnya secara permanen.
+        // --- Helper: Base64 Encoding for UTF-8 (GitHub API Requirement) ---
+        function utf8_to_b64(str) {
+            return window.btoa(unescape(encodeURIComponent(str)));
+        }
+        function b64_to_utf8(str) {
+            return decodeURIComponent(escape(window.atob(str)));
+        }
+
+        // --- Initial Data ---
+        // MARKER_START
         const defaultProfile = {
             name: "Alex Creator",
             title: "Visual Artist & Developer",
@@ -84,24 +88,6 @@
                 image: "https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
                 type: "image",
                 link: "#"
-            },
-            {
-                id: 2,
-                category: 'videography',
-                title: "Cinematic Travel Vlog",
-                description: "Dokumentasi perjalanan wisata Bali dengan color grading sinematik.",
-                videoUrl: "https://www.youtube.com/watch?v=LXb3EKWsInQ", 
-                type: "video",
-                link: "#"
-            },
-            {
-                id: 3,
-                category: 'photography',
-                title: "Urban Street Photography",
-                description: "Koleksi foto jalanan Jakarta di malam hari dengan teknik long exposure.",
-                image: "https://images.unsplash.com/photo-1517789729358-1936c8882046?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-                type: "image",
-                link: "#"
             }
         ];
 
@@ -112,13 +98,6 @@
                 company: "Creative Studio Ind",
                 period: "2022 - Sekarang",
                 description: "Bertanggung jawab atas art direction untuk klien korporat dan manajemen tim kreatif."
-            },
-            {
-                id: 2,
-                role: "Freelance Photographer",
-                company: "Self Employed",
-                period: "2019 - 2022",
-                description: "Mengerjakan proyek fotografi komersial, pernikahan, dan event dokumentasi."
             }
         ];
 
@@ -133,64 +112,152 @@
         ];
 
         const defaultSkills = ["Adobe Premiere", "Photoshop", "Lightroom", "Figma", "React JS", "Cinematography"];
+        // MARKER_END
 
-        function ExportModal({ isOpen, onClose, data }) {
+        function GitHubModal({ isOpen, onClose, data }) {
+            const [step, setStep] = useState(1); // 1: Form, 2: Loading, 3: Success, 4: Error
+            const [creds, setCreds] = useState({ username: '', repo: '', token: '', branch: 'main' });
+            const [statusMsg, setStatusMsg] = useState('');
+
+            useEffect(() => {
+                const savedCreds = localStorage.getItem('gh_creds');
+                if (savedCreds) setCreds(JSON.parse(savedCreds));
+            }, []);
+
             if (!isOpen) return null;
 
-            const copyToClipboard = () => {
-                const codeBlock = document.getElementById('generated-code');
-                codeBlock.select();
-                document.execCommand('copy');
-                alert("Kode berhasil disalin! Silakan paste ke file index.html Anda.");
+            const handleSave = async () => {
+                setStep(2);
+                setStatusMsg("Menghubungkan ke GitHub...");
+                localStorage.setItem('gh_creds', JSON.stringify(creds));
+
+                try {
+                    const filePath = 'index.html'; // Asumsi file bernama index.html
+                    const apiUrl = `https://api.github.com/repos/${creds.username}/${creds.repo}/contents/${filePath}?ref=${creds.branch}`;
+
+                    // 1. GET Current File (We need the SHA to update)
+                    const getRes = await fetch(apiUrl, {
+                        headers: { 
+                            'Authorization': `token ${creds.token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+
+                    if (!getRes.ok) throw new Error("Gagal mengambil file. Cek Username, Repo, atau Token.");
+                    
+                    const fileData = await getRes.json();
+                    const currentSha = fileData.sha;
+                    const currentContent = b64_to_utf8(fileData.content);
+
+                    // 2. Prepare New Content
+                    setStatusMsg("Memproses data...");
+                    
+                    // Kita akan mengganti bagian // MARKER_START sampai // MARKER_END di file asli
+                    // dengan data JSON terbaru dari state aplikasi.
+                    const newDataString = `
+        const defaultProfile = ${JSON.stringify(data.profile, null, 4)};
+
+        const defaultProjects = ${JSON.stringify(data.projects, null, 4)};
+
+        const defaultExperience = ${JSON.stringify(data.experience, null, 4)};
+
+        const defaultEducation = ${JSON.stringify(data.education, null, 4)};
+
+        const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
+                    `;
+
+                    // Regex untuk mencari blok data di file asli
+                    const regex = /\/\/ MARKER_START([\s\S]*?)\/\/ MARKER_END/;
+                    
+                    if (!regex.test(currentContent)) {
+                        throw new Error("Marker data tidak ditemukan di file index.html repository.");
+                    }
+
+                    const newFileContent = currentContent.replace(regex, `// MARKER_START${newDataString}// MARKER_END`);
+                    const encodedContent = utf8_to_b64(newFileContent);
+
+                    // 3. PUT (Update) File
+                    setStatusMsg("Mengupload perubahan...");
+                    const putRes = await fetch(apiUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${creds.token}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: `Update portofolio via web editor (${new Date().toLocaleDateString()})`,
+                            content: encodedContent,
+                            sha: currentSha,
+                            branch: creds.branch
+                        })
+                    });
+
+                    if (!putRes.ok) throw new Error("Gagal mengupload file.");
+
+                    setStep(3); // Success
+                } catch (error) {
+                    console.error(error);
+                    setStatusMsg(error.message);
+                    setStep(4); // Error
+                }
             };
 
-            const codeString = `
-// --- Initial Data (GANTI BAGIAN INI DI FILE ASLI ANDA) ---
-const defaultProfile = ${JSON.stringify(data.profile, null, 4)};
-
-const defaultProjects = ${JSON.stringify(data.projects, null, 4)};
-
-const defaultExperience = ${JSON.stringify(data.experience, null, 4)};
-
-const defaultEducation = ${JSON.stringify(data.education, null, 4)};
-
-const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
-// --- AKHIR BAGIAN YANG DIGANTI ---
-            `;
-
             return (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl flex flex-col max-h-[80vh]">
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800 rounded-t-xl">
-                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                <Code size={20} className="text-cyan-400"/> Export Data Permanen
-                            </h3>
-                            <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={20}/></button>
-                        </div>
-                        <div className="p-4 overflow-y-auto flex-1 text-sm text-slate-300 space-y-4">
-                            <div className="bg-blue-900/30 border border-blue-800 p-3 rounded text-blue-200">
-                                <strong>Cara agar perubahan muncul di HP:</strong>
-                                <ol className="list-decimal ml-4 mt-1 space-y-1">
-                                    <li>Salin kode di bawah ini.</li>
-                                    <li>Buka file <code>index.html</code> di komputer Anda menggunakan Text Editor.</li>
-                                    <li>Cari bagian <code>// --- Initial Data ---</code>.</li>
-                                    <li>Hanti (Replace) variabel <code>defaultProfile</code> sampai <code>defaultSkills</code> dengan kode yang Anda salin.</li>
-                                    <li>Simpan file dan Upload ulang ke GitHub.</li>
-                                </ol>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+                    <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl">
+                        
+                        {step === 1 && (
+                            <>
+                                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                    <Github size={24}/> Simpan ke GitHub
+                                </h3>
+                                <p className="text-sm text-slate-400 mb-4">
+                                    Masukkan detail repository Anda untuk menyimpan perubahan secara permanen.
+                                </p>
+                                <div className="space-y-3">
+                                    <input placeholder="GitHub Username" value={creds.username} onChange={e=>setCreds({...creds, username:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
+                                    <input placeholder="Repository Name (contoh: portofolio-saya)" value={creds.repo} onChange={e=>setCreds({...creds, repo:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
+                                    <input placeholder="Branch (default: main)" value={creds.branch} onChange={e=>setCreds({...creds, branch:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
+                                    <div>
+                                        <input type="password" placeholder="Personal Access Token (Repo Scope)" value={creds.token} onChange={e=>setCreds({...creds, token:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
+                                        <a href="https://github.com/settings/tokens" target="_blank" className="text-xs text-blue-400 hover:underline block mt-1">Buat token di sini (Pilih 'Classic', centang 'repo')</a>
+                                    </div>
+                                </div>
+                                <div className="mt-6 flex justify-end gap-2">
+                                    <button onClick={onClose} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded">Batal</button>
+                                    <button onClick={handleSave} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-bold">Upload</button>
+                                </div>
+                            </>
+                        )}
+
+                        {step === 2 && (
+                            <div className="text-center py-8">
+                                <div className="loader mx-auto mb-4"></div>
+                                <p className="text-white animate-pulse">{statusMsg}</p>
                             </div>
-                            <textarea 
-                                id="generated-code"
-                                readOnly
-                                className="w-full h-64 bg-slate-950 border border-slate-700 rounded p-4 font-mono text-xs text-green-400 focus:outline-none focus:border-cyan-500"
-                                value={codeString}
-                            ></textarea>
-                        </div>
-                        <div className="p-4 border-t border-slate-700 flex justify-end gap-2 bg-slate-800 rounded-b-xl">
-                            <button onClick={onClose} className="px-4 py-2 rounded text-slate-300 hover:text-white hover:bg-slate-700 transition">Tutup</button>
-                            <button onClick={copyToClipboard} className="px-4 py-2 rounded bg-cyan-600 text-white hover:bg-cyan-500 transition font-bold flex items-center gap-2">
-                                <Code size={16}/> Salin Kode
-                            </button>
-                        </div>
+                        )}
+
+                        {step === 3 && (
+                            <div className="text-center py-8">
+                                <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Check size={32}/>
+                                </div>
+                                <h4 className="text-xl font-bold text-white mb-2">Berhasil!</h4>
+                                <p className="text-slate-400 mb-6">Perubahan telah diupload ke GitHub. Tunggu 1-2 menit hingga website terupdate.</p>
+                                <button onClick={onClose} className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded">Tutup</button>
+                            </div>
+                        )}
+
+                        {step === 4 && (
+                            <div className="text-center py-4">
+                                <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <X size={32}/>
+                                </div>
+                                <h4 className="text-xl font-bold text-white mb-2">Gagal</h4>
+                                <p className="text-red-300 mb-6 text-sm">{statusMsg}</p>
+                                <button onClick={()=>setStep(1)} className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded">Coba Lagi</button>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
@@ -201,7 +268,7 @@ const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
             const [isAuthenticated, setIsAuthenticated] = useState(false);
             const [isEditing, setIsEditing] = useState(false);
             const [isMounted, setIsMounted] = useState(false);
-            const [showExport, setShowExport] = useState(false);
+            const [showGitHubModal, setShowGitHubModal] = useState(false);
             const [activeCategory, setActiveCategory] = useState(null); 
             
             // Data States
@@ -274,28 +341,17 @@ const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
             
             const addProject = () => {
                 if (!activeCategory) return;
-                
                 const defaultType = activeCategory === 'videography' ? 'video' : 'image';
                 const defaultImage = activeCategory === 'videography' ? '' : 'https://via.placeholder.com/600x400';
-                
                 const newProj = { 
-                    id: Date.now(),
-                    category: activeCategory,
-                    title: "Proyek Baru", 
-                    description: "Deskripsi...", 
-                    image: defaultImage,
-                    videoUrl: "",
-                    type: defaultType, 
-                    link: "#" 
+                    id: Date.now(), category: activeCategory, title: "Proyek Baru", 
+                    description: "Deskripsi...", image: defaultImage, videoUrl: "", type: defaultType, link: "#" 
                 };
                 setProjects([...projects, newProj]);
             };
 
             const addTag = (setter, list, input, setInput) => {
-                if (input.trim()) {
-                    setter([...list, input.trim()]);
-                    setInput("");
-                }
+                if (input.trim()) { setter([...list, input.trim()]); setInput(""); }
             };
             const removeTag = (setter, list, index) => setter(list.filter((_, i) => i !== index));
 
@@ -310,10 +366,9 @@ const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
             return (
                 <div className="min-h-screen text-slate-100 font-sans selection:bg-cyan-500 selection:text-white pb-20">
                     
-                    {/* Export Modal */}
-                    <ExportModal 
-                        isOpen={showExport} 
-                        onClose={() => setShowExport(false)} 
+                    <GitHubModal 
+                        isOpen={showGitHubModal} 
+                        onClose={() => setShowGitHubModal(false)} 
                         data={{ profile, projects, experience, education, skills }}
                     />
 
@@ -326,20 +381,19 @@ const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
                             
                             {isAuthenticated && (
                                 <div className="flex gap-2">
-                                    {/* Tombol Export Baru */}
                                     <button 
-                                        onClick={() => setShowExport(true)}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white transition-all shadow-lg shadow-purple-500/20"
-                                        title="Dapatkan kode untuk update GitHub"
+                                        onClick={() => setShowGitHubModal(true)}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-slate-800 hover:bg-slate-700 text-white transition-all border border-slate-700"
+                                        title="Simpan permanen ke GitHub"
                                     >
-                                        <Code size={16} /> Export Data
+                                        <CloudUpload size={16} /> <span className="hidden sm:inline">Simpan ke GitHub</span>
                                     </button>
 
                                     <button 
                                         onClick={() => setIsEditing(!isEditing)}
                                         className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isEditing ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}
                                     >
-                                        {isEditing ? <><Save size={16} /> Simpan</> : <><Edit size={16} /> Edit Mode</>}
+                                        {isEditing ? <><Save size={16} /> Selesai</> : <><Edit size={16} /> Edit Mode</>}
                                     </button>
                                 </div>
                             )}
