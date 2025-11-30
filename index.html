@@ -40,117 +40,36 @@
     <script src="./auth.js"></script>
 
     <!-- Script Utama Aplikasi -->
-<script type="text/babel" data-type="module">
-import React, { useState, useEffect, useRef } from 'react';
-import { createRoot } from 'react-dom/client';
-import { 
-    Edit, Save, Plus, Trash2, ExternalLink, Youtube, Image as ImageIcon, 
-    X, Check, Mail, Phone, Briefcase, GraduationCap, Cpu, 
-    Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Code, Github, Upload
-} from 'lucide-react';
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+            Edit, Save, Plus, Trash2, ExternalLink, Youtube, Image as ImageIcon, 
+            X, Check, Mail, Phone, Briefcase, GraduationCap, Cpu, 
+            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Code, Github, Upload
+        } from 'lucide-react';
 
-/* --------------------------
-   Helpers
-   -------------------------- */
-const getVideoInfo = (url) => {
-    if (!url) return { type: null, id: null };
-    const ytMatch = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/);
-    if (ytMatch && ytMatch[2].length === 11) return { type: 'youtube', id: ytMatch[2] };
-    const ttMatch = url.match(/tiktok\.com\/@.+\/video\/(\d+)/);
-    if (ttMatch && ttMatch[1]) return { type: 'tiktok', id: ttMatch[1] };
-    return { type: null, id: null };
-};
+        // --- Helper: Video Detection ---
+        const getVideoInfo = (url) => {
+            if (!url) return { type: null, id: null };
+            const ytMatch = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/);
+            if (ytMatch && ytMatch[2].length === 11) return { type: 'youtube', id: ytMatch[2] };
+            const ttMatch = url.match(/tiktok\.com\/@.+\/video\/(\d+)/);
+            if (ttMatch && ttMatch[1]) return { type: 'tiktok', id: ttMatch[1] };
+            return { type: null, id: null };
+        };
 
-function utf8_to_b64(str) {
-    return window.btoa(unescape(encodeURIComponent(str)));
-}
-function b64_to_utf8(str) {
-    return decodeURIComponent(escape(window.atob(str)));
-}
+        // --- Helper: Base64 Encoding for UTF-8 (GitHub API Requirement) ---
+        function utf8_to_b64(str) {
+            return window.btoa(unescape(encodeURIComponent(str)));
+        }
+        function b64_to_utf8(str) {
+            return decodeURIComponent(escape(window.atob(str)));
+        }
 
-/* --------------------------
-   Reusable: Upload to GitHub
-   (GET -> replace marker -> PUT)
-   -------------------------- */
-async function uploadToGitHub(creds, data, onProgress = () => {}) {
-    if (!creds || !creds.username || !creds.repo || !creds.token) {
-        throw new Error("GitHub credentials incomplete.");
-    }
-    const filePath = 'index.html';
-    const apiUrlGet = `https://api.github.com/repos/${creds.username}/${creds.repo}/contents/${filePath}?ref=${creds.branch || 'main'}`;
-    onProgress("Mengambil file dari GitHub...");
-    const getRes = await fetch(apiUrlGet + `&t=${new Date().getTime()}`, {
-        headers: {
-            'Authorization': `token ${creds.token}`,
-            'Accept': 'application/vnd.github.v3+json'
-        },
-        cache: 'no-store'
-    });
-
-    if (!getRes.ok) {
-        if (getRes.status === 404) throw new Error("File index.html tidak ditemukan di repository.");
-        if ([401,403].includes(getRes.status)) throw new Error("Token GitHub salah atau tidak memiliki izin.");
-        throw new Error(`Gagal mengambil file (${getRes.status}).`);
-    }
-
-    const fileData = await getRes.json();
-    const currentSha = fileData.sha;
-    // keep original formatting as much as possible
-    const currentContent = b64_to_utf8(fileData.content.replace(/\r\n/g, '\n'));
-
-    onProgress("Memproses data untuk disisipkan...");
-    const newDataString = `
+        // --- Initial Data ---
         // MARKER_START
-        const defaultProfile = ${JSON.stringify(data.profile, null, 4)};
-
-        const defaultProjects = ${JSON.stringify(data.projects, null, 4)};
-
-        const defaultExperience = ${JSON.stringify(data.experience, null, 4)};
-
-        const defaultEducation = ${JSON.stringify(data.education, null, 4)};
-
-        const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
-        // MARKER_END
-    `;
-
-    // Flexible regex: find comment markers and replace between them
-    const regex = /(\/\/\s*MARKER_START)[\s\S]*?(\/\/\s*MARKER_END)/;
-    if (!regex.test(currentContent)) {
-        throw new Error("Gagal menemukan marker di file GitHub. Pastikan // MARKER_START dan // MARKER_END ada.");
-    }
-
-    const newFileContent = currentContent.replace(regex, `$1\n${newDataString}\n$2`);
-    const encodedContent = utf8_to_b64(newFileContent);
-
-    onProgress("Mengupload perubahan ke GitHub...");
-    const putRes = await fetch(`https://api.github.com/repos/${creds.username}/${creds.repo}/contents/${filePath}`, {
-        method: 'PUT',
-        headers: {
-            'Authorization': `token ${creds.token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/vnd.github.v3+json'
-        },
-        body: JSON.stringify({
-            message: `Update portofolio otomatis (${new Date().toLocaleString()})`,
-            content: encodedContent,
-            sha: currentSha,
-            branch: creds.branch || 'main'
-        })
-    });
-
-    if (!putRes.ok) {
-        const errInfo = await putRes.json().catch(()=>({message:'Unknown'}));
-        throw new Error("Gagal upload: " + (errInfo.message || "Unknown error"));
-    }
-
-    return await putRes.json();
-}
-
-/* --------------------------
-   Initial Data (ke dalam file: tetap pakai MARKER)
-   -------------------------- */
-// MARKER_START
-const defaultProfile = {
+        const defaultProfile = {
     "name": "Muhammad Azis Faturrohman",
     "title": "Videografer, Desain Grafis, Photografer",
     "bio": "saya adalah",
@@ -160,7 +79,7 @@ const defaultProfile = {
     "location": "Jakarta, Indonesia"
 };
 
-const defaultProjects = [
+        const defaultProjects = [
     {
         "id": 1,
         "category": "design",
@@ -190,7 +109,7 @@ const defaultProjects = [
     }
 ];
 
-const defaultExperience = [
+        const defaultExperience = [
     {
         "id": 1,
         "role": "Senior Visual Designer",
@@ -207,7 +126,7 @@ const defaultExperience = [
     }
 ];
 
-const defaultEducation = [
+        const defaultEducation = [
     {
         "id": 1,
         "degree": "S1 Desain Komunikasi Visual",
@@ -217,7 +136,7 @@ const defaultEducation = [
     }
 ];
 
-const defaultSkills = [
+        const defaultSkills = [
     "Adobe Premiere",
     "Photoshop",
     "Lightroom",
@@ -225,289 +144,622 @@ const defaultSkills = [
     "React JS",
     "Cinematography"
 ];
-// MARKER_END
+        // MARKER_END
 
-/* --------------------------
-   GitHub Modal: sekarang memanggil uploadToGitHub()
-   -------------------------- */
-function GitHubModal({ isOpen, onClose, data }) {
-    const [step, setStep] = useState(1); // 1: Form, 2: Loading, 3: Success, 4: Error
-    const [creds, setCreds] = useState({ username: '', repo: '', token: '', branch: 'main' });
-    const [statusMsg, setStatusMsg] = useState('');
+        function GitHubModal({ isOpen, onClose, data }) {
+            const [step, setStep] = useState(1); // 1: Form, 2: Loading, 3: Success, 4: Error
+            const [creds, setCreds] = useState({ username: '', repo: '', token: '', branch: 'main' });
+            const [statusMsg, setStatusMsg] = useState('');
 
-    useEffect(() => {
-        const savedCreds = localStorage.getItem('gh_creds');
-        if (savedCreds) setCreds(JSON.parse(savedCreds));
-    }, []);
+            useEffect(() => {
+                const savedCreds = localStorage.getItem('gh_creds');
+                if (savedCreds) setCreds(JSON.parse(savedCreds));
+            }, []);
 
-    if (!isOpen) return null;
+            if (!isOpen) return null;
 
-    const handleSave = async () => {
-        setStep(2);
-        setStatusMsg("Menyiapkan upload...");
-        localStorage.setItem('gh_creds', JSON.stringify(creds));
+            const handleSave = async () => {
+                setStep(2);
+                setStatusMsg("Menghubungkan ke GitHub...");
+                localStorage.setItem('gh_creds', JSON.stringify(creds));
 
-        try {
-            if(!creds.username || !creds.repo || !creds.token) {
-                throw new Error("Data GitHub belum lengkap.");
-            }
-            await uploadToGitHub(creds, data, (m)=>setStatusMsg(m));
-            setStep(3);
-        } catch (error) {
-            console.error(error);
-            setStatusMsg(error.message || 'Unknown error');
-            setStep(4);
-        }
-    };
+                try {
+                    if(!creds.username || !creds.repo || !creds.token) {
+                        throw new Error("Data GitHub belum lengkap.");
+                    }
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl">
-                {step === 1 && (
-                    <>
-                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                            <Github size={24}/> Simpan ke GitHub
-                        </h3>
-                        <p className="text-sm text-slate-400 mb-4">
-                            Masukkan detail repository Anda untuk menyimpan perubahan secara permanen.
-                        </p>
-                        <div className="space-y-3">
-                            <input placeholder="GitHub Username" value={creds.username} onChange={e=>setCreds({...creds, username:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
-                            <input placeholder="Repository Name (contoh: portofolio-saya)" value={creds.repo} onChange={e=>setCreds({...creds, repo:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
-                            <input placeholder="Branch (default: main)" value={creds.branch} onChange={e=>setCreds({...creds, branch:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
-                            <div>
-                                <input type="password" placeholder="Personal Access Token (Repo Scope)" value={creds.token} onChange={e=>setCreds({...creds, token:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
-                                <a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline block mt-1">Buat token di sini (Pilih 'Classic', centang 'repo')</a>
-                            </div>
-                        </div>
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button onClick={onClose} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded">Batal</button>
-                            <button onClick={handleSave} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-bold">Upload</button>
-                        </div>
-                    </>
-                )}
+                    const filePath = 'index.html';
+                    const apiUrl = `https://api.github.com/repos/${creds.username}/${creds.repo}/contents/${filePath}?ref=${creds.branch}`;
 
-                {step === 2 && (
-                    <div className="text-center py-8">
-                        <div className="loader mx-auto mb-4"></div>
-                        <p className="text-white animate-pulse">{statusMsg}</p>
-                    </div>
-                )}
+                    // 1. GET Current File
+                    setStatusMsg("Mengambil file dari GitHub...");
+                    const getRes = await fetch(apiUrl + `&t=${new Date().getTime()}`, {
+                        headers: { 
+                            'Authorization': `token ${creds.token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        },
+                        cache: 'no-store'
+                    });
 
-                {step === 3 && (
-                    <div className="text-center py-8">
-                        <Check size={32} className="mx-auto text-green-400 mb-4"/>
-                        <p className="text-white">Berhasil disimpan ke GitHub.</p>
-                        <div className="mt-6">
-                            <button onClick={() => { setStep(1); onClose(); }} className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded">Tutup</button>
-                        </div>
-                    </div>
-                )}
+                    if (!getRes.ok) {
+                        if(getRes.status === 404) throw new Error("File index.html tidak ditemukan di repository. Pastikan nama repo benar.");
+                        if(getRes.status === 401) throw new Error("Token GitHub salah atau tidak memiliki izin.");
+                        throw new Error(`Gagal mengambil file (${getRes.status}). Cek koneksi internet.`);
+                    }
+                    
+                    const fileData = await getRes.json();
+                    const currentSha = fileData.sha;
+                    const currentContent = b64_to_utf8(fileData.content.replace(/\n/g, ''));
 
-                {step === 4 && (
-                    <div className="text-center py-8">
-                        <p className="text-red-400 mb-4">Gagal: {statusMsg}</p>
-                        <div className="mt-6">
-                            <button onClick={() => setStep(1)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded">Kembali</button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
+                    // 2. Prepare New Content
+                    setStatusMsg("Memproses data baru...");
+                    
+                    // Format data dengan indentasi yang benar
+                    const newDataString = `
+        const defaultProfile = ${JSON.stringify(data.profile, null, 4)};
 
-/* --------------------------
-   Main App
-   -------------------------- */
-function App() {
-    const [profile, setProfile] = useState(defaultProfile);
-    const [projects, setProjects] = useState(defaultProjects);
-    const [experience, setExperience] = useState(defaultExperience);
-    const [education, setEducation] = useState(defaultEducation);
-    const [skills, setSkills] = useState(defaultSkills);
+        const defaultProjects = ${JSON.stringify(data.projects, null, 4)};
 
-    const [isAuthenticated, setIsAuthenticated] = useState(!!window?.isAdmin);
-    const [isEditing, setIsEditing] = useState(false);
-    const [showGitHubModal, setShowGitHubModal] = useState(false);
+        const defaultExperience = ${JSON.stringify(data.experience, null, 4)};
 
-    // Auto-sync states
-    const [autoSync, setAutoSync] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('pf_auto_sync') || 'false'); } catch(e){return false;}
-    });
-    const isUploadingRef = useRef(false);
-    const syncTimerRef = useRef(null);
-    const lastPayloadRef = useRef(null);
-    const [syncStatus, setSyncStatus] = useState('');
-    const [activeCategory, setActiveCategory] = useState('');
+        const defaultEducation = ${JSON.stringify(data.education, null, 4)};
 
-    useEffect(() => {
-        // set isAuthenticated based on injected auth helper if available
-        if (window && typeof window?.isAdmin !== 'undefined') setIsAuthenticated(!!window.isAdmin);
-    }, []);
+        const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
+        `;
 
-    // Debounced auto-sync effect
-    useEffect(() => {
-        // Only run when autoSync enabled and user authenticated
-        if (!autoSync || !isAuthenticated) return;
+                    // Cari marker dengan presisi tinggi
+                    const markerStart = '// MARKER_START';
+                    const markerEnd = '// MARKER_END';
+                    
+                    const startIndex = currentContent.indexOf(markerStart);
+                    const endIndex = currentContent.indexOf(markerEnd);
+                    
+                    if (startIndex === -1 || endIndex === -1) {
+                        throw new Error("Gagal menemukan marker di file GitHub. Pastikan file belum dimodifikasi secara manual.");
+                    }
 
-        const payload = { profile, projects, experience, education, skills };
-        const payloadStr = JSON.stringify(payload);
+                    // Rekonstruksi file dengan data baru
+                    const beforeMarker = currentContent.substring(0, startIndex + markerStart.length);
+                    const afterMarker = currentContent.substring(endIndex);
+                    const newFileContent = beforeMarker + newDataString + afterMarker;
+                    
+                    const encodedContent = utf8_to_b64(newFileContent);
 
-        if (lastPayloadRef.current === payloadStr) return;
+                    // 3. PUT (Update) File
+                    setStatusMsg("Mengupload perubahan ke GitHub...");
+                    const putRes = await fetch(apiUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${creds.token}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: `Update portofolio otomatis (${new Date().toLocaleString('id-ID')})`,
+                            content: encodedContent,
+                            sha: currentSha,
+                            branch: creds.branch
+                        })
+                    });
 
-        if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-        syncTimerRef.current = setTimeout(async () => {
-            if (isUploadingRef.current) return;
+                    if (!putRes.ok) {
+                        const errInfo = await putRes.json();
+                        throw new Error("Gagal upload: " + (errInfo.message || "Unknown error"));
+                    }
 
-            const saved = localStorage.getItem('gh_creds');
-            if (!saved) {
-                console.warn("AutoSync: GH creds not found. Skipping.");
-                setSyncStatus('AutoSync: GitHub creds tidak ditemukan.');
-                return;
-            }
-            const creds = JSON.parse(saved);
-            if (!creds.username || !creds.repo || !creds.token) {
-                console.warn("AutoSync: incomplete GH creds. Skipping.");
-                setSyncStatus('AutoSync: Kredensial GitHub tidak lengkap.');
-                return;
-            }
+                    setStep(3); // Success
+                } catch (error) {
+                    console.error(error);
+                    setStatusMsg(error.message);
+                    setStep(4); // Error
+                }
+            };
 
-            try {
-                isUploadingRef.current = true;
-                setSyncStatus('AutoSync: Mengupload...');
-                await uploadToGitHub(creds, payload, (m)=>setSyncStatus('AutoSync: ' + m));
-                lastPayloadRef.current = payloadStr;
-                setSyncStatus('Terakhir disinkronkan: ' + new Date().toLocaleTimeString());
-            } catch (err) {
-                console.error("AutoSync error:", err);
-                setSyncStatus('AutoSync error: ' + (err.message || 'Unknown'));
-            } finally {
-                isUploadingRef.current = false;
-                syncTimerRef.current = null;
-            }
-        }, 3000);
-
-        return () => {
-            if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-        };
-    }, [profile, projects, experience, education, skills, autoSync, isAuthenticated]);
-
-    /* ---------- small helpers ---------- */
-    const handleAuthAction = () => {
-        if (isAuthenticated) {
-            if (window?.doLogout) {
-                window.doLogout();
-                setIsAuthenticated(false);
-                setIsEditing(false);
-                alert("Berhasil Logout.");
-            } else {
-                setIsAuthenticated(false);
-                alert("Logout (simulasi).");
-            }
-        } else {
-            window.location.href = "login.html";
-        }
-    };
-
-    const handleProfileChange = (e) => setProfile({ ...profile, [e.target.name]: e.target.value });
-
-    const updateItem = (setter, list, id, field, value) => {
-        setter(list.map(item => item.id === id ? { ...item, [field]: value } : item));
-    };
-
-    const deleteItem = (setter, list, id) => {
-        if (confirm("Hapus item ini?")) setter(list.filter(item => item.id !== id));
-    };
-
-    const addItem = (setter, list, template) => setter([...list, { ...template, id: Date.now() }]);
-
-    const addExperience = () => addItem(setExperience, experience, { role: "Peran Baru", company: "Perusahaan", period: "Tahun", description: "Deskripsi..." });
-    const addEducation = () => addItem(setEducation, education, { degree: "Gelar", school: "Sekolah", period: "Tahun", description: "Deskripsi..." });
-
-    const addProject = () => {
-        if (!activeCategory) return;
-        const defaultType = activeCategory === 'videography' ? 'video' : 'image';
-        const defaultImage = activeCategory === 'videography' ? '' : 'https://via.placeholder.com/600x400';
-        const newProj = { id: Date.now(), category: activeCategory, title: "Proyek Baru", description: "Deskripsi.", image: defaultImage, videoUrl: "", type: defaultType, link: "#" };
-        setProjects([...projects, newProj]);
-    };
-
-    const addTag = (setter, list, input, setInput) => {
-        if (input && input.trim()) { setter([...list, input.trim()]); setInput && setInput(""); }
-    };
-    const removeTag = (setter, list, index) => setter(list.filter((_, i) => i !== index));
-
-    const categories = [
-        { id: 'videography', label: 'Videografi', icon: Video, color: 'from-red-500 to-pink-600', desc: 'Video Youtube, Shorts, dan TikTok.' },
-        { id: 'design', label: 'Desain Grafis', icon: Palette, color: 'from-purple-500 to-indigo-600', desc: 'Branding, UI/UX, dan ilustrasi digital.' },
-        { id: 'photography', label: 'Fotografi', icon: Camera, color: 'from-green-400 to-emerald-600', desc: 'Potret, lanskap, dan fotografi jalanan.' }
-    ];
-
-    return (
-        <div className="min-h-screen text-slate-100 font-sans selection:bg-cyan-500 selection:text-white pb-20">
-            <GitHubModal isOpen={showGitHubModal} onClose={() => setShowGitHubModal(false)} data={{ profile, projects, experience, education, skills }} />
-
-            <nav className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800">
-                <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-                    <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                        {profile.name}
-                    </span>
-
-                    <div className="flex items-center gap-4">
-                        {isAuthenticated && (
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+                    <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl">
+                        
+                        {step === 1 && (
                             <>
-                                <label className="flex items-center gap-2 text-sm text-slate-300">
-                                    <input type="checkbox" checked={autoSync} onChange={(e)=>{ setAutoSync(e.target.checked); localStorage.setItem('pf_auto_sync', JSON.stringify(e.target.checked)); }} />
-                                    Auto-sync
-                                </label>
-
-                                <div className="flex gap-2">
-                                    <button onClick={() => setShowGitHubModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-slate-800 hover:bg-slate-700 text-white transition-all border border-slate-700">
-                                        <Upload size={16} /> <span className="hidden sm:inline">Simpan ke GitHub</span>
-                                    </button>
-
-                                    <button onClick={() => setIsEditing(!isEditing)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isEditing ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}>
-                                        {isEditing ? <><Save size={16} /> Selesai</> : <><Edit size={16} /> Edit Mode</>}
-                                    </button>
+                                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                    <Github size={24}/> Simpan ke GitHub
+                                </h3>
+                                <p className="text-sm text-slate-400 mb-4">
+                                    Masukkan detail repository Anda untuk menyimpan perubahan secara permanen.
+                                </p>
+                                <div className="space-y-3">
+                                    <input placeholder="GitHub Username" value={creds.username} onChange={e=>setCreds({...creds, username:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
+                                    <input placeholder="Repository Name (contoh: portofolio-saya)" value={creds.repo} onChange={e=>setCreds({...creds, repo:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
+                                    <input placeholder="Branch (default: main)" value={creds.branch} onChange={e=>setCreds({...creds, branch:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
+                                    <div>
+                                        <input type="password" placeholder="Personal Access Token (Repo Scope)" value={creds.token} onChange={e=>setCreds({...creds, token:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white"/>
+                                        <a href="https://github.com/settings/tokens" target="_blank" className="text-xs text-blue-400 hover:underline block mt-1">Buat token di sini (Pilih 'Classic', centang 'repo')</a>
+                                    </div>
+                                </div>
+                                <div className="mt-6 flex justify-end gap-2">
+                                    <button onClick={onClose} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded">Batal</button>
+                                    <button onClick={handleSave} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-bold">Upload</button>
                                 </div>
                             </>
                         )}
 
-                        <button onClick={handleAuthAction} className={`flex items-center gap-2 px-3 py-1 rounded transition-colors ${isAuthenticated ? 'text-green-500 hover:bg-green-500/10' : 'text-slate-600 hover:text-slate-400'}`} title={isAuthenticated ? "Logout Admin" : "Login Admin"}>
+                        {step === 2 && (
+                            <div className="text-center py-8">
+                                <div className="loader mx-auto mb-4"></div>
+                                <p className="text-white animate-pulse">{statusMsg}</p>
+                            </div>
+                        )}
+
+                        {step === 3 && (
+                            <div className="text-center py-8">
+                                <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Check size={32}/>
+                                </div>
+                                <h4 className="text-xl font-bold text-white mb-2">Berhasil Disimpan!</h4>
+                                <div className="bg-blue-900/30 border border-blue-800 p-4 rounded-lg text-sm text-blue-200 text-left mb-6">
+                                    <p className="font-bold mb-2">⚠️ PENTING: BACA INI</p>
+                                    <ul className="list-disc pl-4 space-y-1">
+                                        <li>Perubahan sudah dikirim ke GitHub.</li>
+                                        <li>GitHub butuh waktu <strong>1-5 menit</strong> untuk memperbarui website live.</li>
+                                        <li>Jika di HP belum berubah, coba <strong>Clear Cache</strong> browser HP atau buka di Tab Penyamaran (Incognito).</li>
+                                    </ul>
+                                </div>
+                                <button onClick={onClose} className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded">Tutup</button>
+                            </div>
+                        )}
+
+                        {step === 4 && (
+                            <div className="text-center py-4">
+                                <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <X size={32}/>
+                                </div>
+                                <h4 className="text-xl font-bold text-white mb-2">Gagal</h4>
+                                <p className="text-red-300 mb-6 text-sm">{statusMsg}</p>
+                                <button onClick={()=>setStep(1)} className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded">Coba Lagi</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        function App() {
+            // --- States ---
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [isEditing, setIsEditing] = useState(false);
+            const [isMounted, setIsMounted] = useState(false);
+            const [showGitHubModal, setShowGitHubModal] = useState(false);
+            const [activeCategory, setActiveCategory] = useState(null); 
+            
+            // Data States
+            const [profile, setProfile] = useState(defaultProfile);
+            const [projects, setProjects] = useState(defaultProjects);
+            const [experience, setExperience] = useState(defaultExperience);
+            const [education, setEducation] = useState(defaultEducation);
+            const [skills, setSkills] = useState(defaultSkills);
+            
+            const [newSkillInput, setNewSkillInput] = useState("");
+
+            useEffect(() => {
+                const load = (key, setter) => {
+                    const saved = localStorage.getItem(key);
+                    if (saved) setter(JSON.parse(saved));
+                };
+                
+                load('pf_profile_v2', setProfile);
+                load('pf_projects_v2', setProjects);
+                load('pf_experience_v2', setExperience);
+                load('pf_education_v2', setEducation);
+                load('pf_skills_v2', setSkills);
+                setIsMounted(true);
+                
+                if (window.isLoggedIn && window.isLoggedIn()) {
+                    setIsAuthenticated(true);
+                }
+            }, []);
+
+            useEffect(() => {
+                if (isMounted) {
+                    localStorage.setItem('pf_profile_v2', JSON.stringify(profile));
+                    localStorage.setItem('pf_projects_v2', JSON.stringify(projects));
+                    localStorage.setItem('pf_experience_v2', JSON.stringify(experience));
+                    localStorage.setItem('pf_education_v2', JSON.stringify(education));
+                    localStorage.setItem('pf_skills_v2', JSON.stringify(skills));
+                }
+            }, [profile, projects, experience, education, skills, isMounted]);
+
+            // --- Handlers ---
+            const handleAuthAction = () => {
+                if (isAuthenticated) {
+                    if(confirm("Apakah Anda yakin ingin keluar dari mode Admin?")) {
+                        window.doLogout();
+                        setIsAuthenticated(false);
+                        setIsEditing(false);
+                        alert("Berhasil Logout.");
+                    }
+                } else {
+                    window.location.href = "login.html";
+                }
+            };
+
+            const handleProfileChange = (e) => setProfile({ ...profile, [e.target.name]: e.target.value });
+            
+            const updateItem = (setter, list, id, field, value) => {
+                setter(list.map(item => item.id === id ? { ...item, [field]: value } : item));
+            };
+
+            const deleteItem = (setter, list, id) => {
+                if (confirm("Hapus item ini?")) setter(list.filter(item => item.id !== id));
+            };
+
+            const addItem = (setter, list, template) => {
+                setter([...list, { ...template, id: Date.now() }]);
+            };
+
+            const addExperience = () => addItem(setExperience, experience, { role: "Peran Baru", company: "Perusahaan", period: "Tahun", description: "Deskripsi..." });
+            const addEducation = () => addItem(setEducation, education, { degree: "Gelar", school: "Sekolah", period: "Tahun", description: "Deskripsi..." });
+            
+            const addProject = () => {
+                if (!activeCategory) return;
+                const defaultType = activeCategory === 'videography' ? 'video' : 'image';
+                const defaultImage = activeCategory === 'videography' ? '' : 'https://via.placeholder.com/600x400';
+                const newProj = { 
+                    id: Date.now(), category: activeCategory, title: "Proyek Baru", 
+                    description: "Deskripsi...", image: defaultImage, videoUrl: "", type: defaultType, link: "#" 
+                };
+                setProjects([...projects, newProj]);
+            };
+
+            const addTag = (setter, list, input, setInput) => {
+                if (input.trim()) { setter([...list, input.trim()]); setInput(""); }
+            };
+            const removeTag = (setter, list, index) => setter(list.filter((_, i) => i !== index));
+
+            const categories = [
+                { id: 'videography', label: 'Videografi', icon: Video, color: 'from-red-500 to-pink-600', desc: 'Video Youtube, Shorts, dan TikTok.' },
+                { id: 'design', label: 'Desain Grafis', icon: Palette, color: 'from-purple-500 to-indigo-600', desc: 'Branding, UI/UX, dan ilustrasi digital.' },
+                { id: 'photography', label: 'Fotografi', icon: Camera, color: 'from-green-400 to-emerald-600', desc: 'Potret, lanskap, dan fotografi jalanan.' }
+            ];
+
+            const currentCategoryData = categories.find(c => c.id === activeCategory);
+
+            return (
+                <div className="min-h-screen text-slate-100 font-sans selection:bg-cyan-500 selection:text-white pb-20">
+                    
+                    <GitHubModal 
+                        isOpen={showGitHubModal} 
+                        onClose={() => setShowGitHubModal(false)} 
+                        data={{ profile, projects, experience, education, skills }}
+                    />
+
+                    {/* Navbar */}
+                    <nav className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800">
+                        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+                            <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                                {profile.name}
+                            </span>
+                            
+                            {isAuthenticated && (
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => setShowGitHubModal(true)}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-slate-800 hover:bg-slate-700 text-white transition-all border border-slate-700"
+                                        title="Simpan permanen ke GitHub"
+                                    >
+                                        <Upload size={16} /> <span className="hidden sm:inline">Simpan ke GitHub</span>
+                                    </button>
+
+                                    <button 
+                                        onClick={() => setIsEditing(!isEditing)}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isEditing ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}
+                                    >
+                                        {isEditing ? <><Save size={16} /> Selesai</> : <><Edit size={16} /> Edit Mode</>}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </nav>
+
+                    {/* Hero Section */}
+                    <header className="pt-32 pb-16 px-4">
+                        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-8 md:gap-12 animate-fade-in">
+                            <div className="relative shrink-0">
+                                <img 
+                                    src={profile.avatar} 
+                                    alt="Profile" 
+                                    className="w-32 h-32 md:w-48 md:h-48 rounded-full object-cover border-4 border-slate-800 shadow-2xl ring-2 ring-cyan-500/50"
+                                    onError={(e) => {e.target.src = 'https://via.placeholder.com/150'}}
+                                />
+                                {isEditing && (
+                                    <input type="text" name="avatar" value={profile.avatar} onChange={handleProfileChange} 
+                                        className="absolute -bottom-4 left-0 w-full text-[10px] bg-slate-800 border border-slate-600 rounded p-1 text-center" placeholder="URL Foto"
+                                    />
+                                )}
+                            </div>
+                            
+                            <div className="text-center md:text-left flex-1 space-y-4">
+                                {isEditing ? (
+                                    <div className="space-y-3">
+                                        <input type="text" name="name" value={profile.name} onChange={handleProfileChange} className="w-full text-4xl font-bold bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Nama Lengkap"/>
+                                        <input type="text" name="title" value={profile.title} onChange={handleProfileChange} className="w-full text-xl text-cyan-400 bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Judul Pekerjaan"/>
+                                        <textarea name="bio" value={profile.bio} onChange={handleProfileChange} className="w-full bg-slate-900/50 border border-slate-700 rounded p-2 h-24 outline-none focus:border-cyan-500" placeholder="Biografi singkat..."/>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <input type="text" name="email" value={profile.email} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm" placeholder="Email"/>
+                                            <input type="text" name="phone" value={profile.phone} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm" placeholder="Telepon"/>
+                                            <input type="text" name="location" value={profile.location} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm col-span-2" placeholder="Lokasi"/>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{profile.name}</h1>
+                                            <p className="text-xl text-cyan-400 font-medium">{profile.title}</p>
+                                        </div>
+                                        <p className="text-slate-400 leading-relaxed max-w-2xl">{profile.bio}</p>
+                                        <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-slate-300 pt-2">
+                                            {profile.email && <a href={`mailto:${profile.email}`} className="flex items-center gap-2 hover:text-white"><Mail size={16} /> {profile.email}</a>}
+                                            {profile.phone && <a href={`tel:${profile.phone}`} className="flex items-center gap-2 hover:text-white"><Phone size={16} /> {profile.phone}</a>}
+                                            {profile.location && <span className="flex items-center gap-2"><MapPin size={16} /> {profile.location}</span>}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </header>
+
+                    <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-12 mt-8">
+                        
+                        {/* LEFT COLUMN: Skills */}
+                        <aside className="space-y-12 lg:col-span-1">
+                            <section className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+                                <h3 className="flex items-center gap-2 text-lg font-bold text-white mb-4">
+                                    <Cpu className="text-cyan-500" size={20} /> Keterampilan
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {skills.map((skill, index) => (
+                                        <span key={index} className="px-3 py-1 bg-slate-800 text-cyan-300 text-sm rounded-full flex items-center gap-2 border border-slate-700">
+                                            {skill}
+                                            {isEditing && <button onClick={() => removeTag(setSkills, skills, index)} className="hover:text-red-400"><X size={12}/></button>}
+                                        </span>
+                                    ))}
+                                </div>
+                                {isEditing && (
+                                    <div className="mt-3 flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={newSkillInput} 
+                                            onChange={(e) => setNewSkillInput(e.target.value)} 
+                                            className="flex-1 bg-slate-950 border border-slate-700 rounded px-3 py-1 text-sm outline-none focus:border-cyan-500"
+                                            placeholder="Tambah skill..."
+                                            onKeyPress={(e) => e.key === 'Enter' && addTag(setSkills, skills, newSkillInput, setNewSkillInput)}
+                                        />
+                                        <button onClick={() => addTag(setSkills, skills, newSkillInput, setNewSkillInput)} className="bg-cyan-600 p-1 rounded hover:bg-cyan-500"><Plus size={18}/></button>
+                                    </div>
+                                )}
+                            </section>
+                        </aside>
+
+                        {/* RIGHT COLUMN: Experience & Education */}
+                        <main className="lg:col-span-2 space-y-12">
+                            {/* EXPERIENCE */}
+                            <section>
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="flex items-center gap-3 text-2xl font-bold text-white">
+                                        <div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><Briefcase size={24}/></div>
+                                        Pengalaman Kerja
+                                    </h3>
+                                    {isEditing && <button onClick={addExperience} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
+                                </div>
+                                <div className="space-y-8">
+                                    {experience.map((exp) => (
+                                        <div key={exp.id} className="group relative bg-slate-900/30 p-6 rounded-2xl border border-slate-800 hover:border-cyan-900/50 transition-colors">
+                                            {isEditing && <button onClick={() => deleteItem(setExperience, experience, exp.id)} className="absolute top-4 right-4 text-slate-600 hover:text-red-500"><Trash2 size={18}/></button>}
+                                            {isEditing ? (
+                                                <div className="space-y-3">
+                                                    <input value={exp.role} onChange={(e) => updateItem(setExperience, experience, exp.id, 'role', e.target.value)} className="w-full font-bold text-lg bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Jabatan"/>
+                                                    <div className="flex gap-2">
+                                                        <input value={exp.company} onChange={(e) => updateItem(setExperience, experience, exp.id, 'company', e.target.value)} className="flex-1 text-cyan-400 bg-transparent border-b border-slate-700 outline-none" placeholder="Perusahaan"/>
+                                                        <input value={exp.period} onChange={(e) => updateItem(setExperience, experience, exp.id, 'period', e.target.value)} className="w-1/3 text-slate-500 bg-transparent border-b border-slate-700 outline-none text-right" placeholder="Tahun"/>
+                                                    </div>
+                                                    <textarea value={exp.description} onChange={(e) => updateItem(setExperience, experience, exp.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700 h-24" placeholder="Deskripsi..."/>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
+                                                        <div>
+                                                            <h4 className="text-xl font-bold text-slate-100">{exp.role}</h4>
+                                                            <p className="text-cyan-400 font-medium">{exp.company}</p>
+                                                        </div>
+                                                        <span className="text-sm font-mono text-slate-500 mt-1 md:mt-0 bg-slate-800 px-2 py-1 rounded">{exp.period}</span>
+                                                    </div>
+                                                    <p className="text-slate-400 leading-relaxed text-sm">{exp.description}</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* EDUCATION */}
+                            <section>
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="flex items-center gap-3 text-2xl font-bold text-white">
+                                        <div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><GraduationCap size={24}/></div>
+                                        Riwayat Pendidikan
+                                    </h3>
+                                    {isEditing && <button onClick={addEducation} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
+                                </div>
+                                <div className="space-y-6">
+                                    {education.map((edu) => (
+                                        <div key={edu.id} className="relative pl-8 border-l-2 border-slate-800 hover:border-cyan-500 transition-colors py-2">
+                                            <div className="absolute -left-[9px] top-3 w-4 h-4 rounded-full bg-slate-950 border-2 border-cyan-500"></div>
+                                            {isEditing && <button onClick={() => deleteItem(setEducation, education, edu.id)} className="absolute top-0 right-0 text-slate-600 hover:text-red-500"><Trash2 size={16}/></button>}
+                                            {isEditing ? (
+                                                <div className="space-y-2">
+                                                    <input value={edu.degree} onChange={(e) => updateItem(setEducation, education, edu.id, 'degree', e.target.value)} className="w-full font-bold bg-transparent border-b border-slate-700" placeholder="Gelar"/>
+                                                    <input value={edu.school} onChange={(e) => updateItem(setEducation, education, edu.id, 'school', e.target.value)} className="w-full text-cyan-400 bg-transparent border-b border-slate-700" placeholder="Kampus"/>
+                                                    <input value={edu.period} onChange={(e) => updateItem(setEducation, education, edu.id, 'period', e.target.value)} className="w-full text-sm text-slate-500 bg-transparent border-b border-slate-700" placeholder="Tahun"/>
+                                                    <textarea value={edu.description} onChange={(e) => updateItem(setEducation, education, edu.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700" placeholder="Deskripsi..."/>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <h4 className="text-lg font-bold text-slate-100">{edu.degree}</h4>
+                                                    <div className="flex justify-between items-center text-sm text-slate-400 mb-2">
+                                                        <span>{edu.school}</span>
+                                                        <span className="italic">{edu.period}</span>
+                                                    </div>
+                                                    <p className="text-slate-500 text-sm">{edu.description}</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </main>
+                    </div>
+
+                    {/* FULL WIDTH PROJECTS SECTION */}
+                    <section id="projects" className="max-w-6xl mx-auto px-4 mt-20 mb-20">
+                        {!activeCategory ? (
+                            <div className="space-y-8 animate-fade-in">
+                                <h3 className="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                                    Kategori Portofolio
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {categories.map((cat) => (
+                                        <button
+                                            key={cat.id}
+                                            onClick={() => setActiveCategory(cat.id)}
+                                            className="group relative h-64 rounded-2xl overflow-hidden border border-slate-800 hover:border-slate-600 transition-all text-left"
+                                        >
+                                            <div className={`absolute inset-0 bg-gradient-to-br ${cat.color} opacity-10 group-hover:opacity-20 transition-opacity`}></div>
+                                            <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px] group-hover:backdrop-blur-none transition-all"></div>
+                                            
+                                            <div className="relative p-8 h-full flex flex-col items-center justify-center text-center space-y-4">
+                                                <div className="p-4 bg-slate-900 rounded-full border border-slate-700 group-hover:scale-110 transition-transform">
+                                                    <cat.icon size={32} className="text-slate-200" />
+                                                </div>
+                                                <h4 className="text-2xl font-bold text-white group-hover:text-cyan-400 transition-colors">{cat.label}</h4>
+                                                <p className="text-sm text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                                                    {cat.desc}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-8 animate-fade-in">
+                                <div className="flex items-center justify-between mb-8 border-b border-slate-800 pb-4">
+                                    <div className="flex items-center gap-4">
+                                        <button 
+                                            onClick={() => setActiveCategory(null)}
+                                            className="p-2 rounded-full hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
+                                        >
+                                            <ArrowLeft size={24} />
+                                        </button>
+                                        <div>
+                                            <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                                                {currentCategoryData?.icon && <currentCategoryData.icon size={24} className="text-cyan-500"/>}
+                                                {currentCategoryData?.label}
+                                            </h3>
+                                            <p className="text-sm text-slate-500">Menampilkan daftar proyek {currentCategoryData?.label}</p>
+                                        </div>
+                                    </div>
+                                    {isEditing && (
+                                        <button onClick={addProject} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg font-medium transition shadow-lg shadow-cyan-500/20">
+                                            <Plus size={18} /> Tambah Proyek
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {projects
+                                        .filter(p => p.category === activeCategory)
+                                        .map((project) => {
+                                            const { type: videoType, id: videoId } = getVideoInfo(project.videoUrl);
+                                            
+                                            return (
+                                                <div key={project.id} className="bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800 hover:border-cyan-500/50 transition-all group flex flex-col">
+                                                    <div className="relative aspect-video bg-black">
+                                                        {project.type === 'video' && videoId ? (
+                                                            <iframe
+                                                                className="w-full h-full"
+                                                                src={videoType === 'youtube' 
+                                                                    ? `https://www.youtube.com/embed/${videoId}` 
+                                                                    : `https://www.tiktok.com/embed/v2/${videoId}`
+                                                                }
+                                                                title={project.title}
+                                                                frameBorder="0"
+                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                allowFullScreen
+                                                            ></iframe>
+                                                        ) : (
+                                                            <img src={project.image} alt={project.title} className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://via.placeholder.com/600x400'}/>
+                                                        )}
+                                                        
+                                                        {isEditing && (
+                                                            <button onClick={() => deleteItem(setProjects, projects, project.id)} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 z-10"><Trash2 size={16}/></button>
+                                                        )}
+                                                    </div>
+                                                    <div className="p-5 flex-1 flex flex-col">
+                                                        {isEditing ? (
+                                                            <div className="space-y-3 flex-1">
+                                                                <div className="flex gap-2 text-xs">
+                                                                    <button onClick={() => updateItem(setProjects, projects, project.id, 'type', 'image')} className={`flex-1 py-1 rounded ${project.type === 'image' ? 'bg-cyan-600' : 'bg-slate-700'}`}>Foto</button>
+                                                                    <button onClick={() => updateItem(setProjects, projects, project.id, 'type', 'video')} className={`flex-1 py-1 rounded ${project.type === 'video' ? 'bg-red-600' : 'bg-slate-700'}`}>Video</button>
+                                                                </div>
+                                                                {project.type === 'image' ? (
+                                                                    <input value={project.image} onChange={(e) => updateItem(setProjects, projects, project.id, 'image', e.target.value)} placeholder="URL Gambar" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                                ) : (
+                                                                    <input value={project.videoUrl} onChange={(e) => updateItem(setProjects, projects, project.id, 'videoUrl', e.target.value)} placeholder="URL YouTube / Shorts / TikTok" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                                )}
+                                                                <input value={project.title} onChange={(e) => updateItem(setProjects, projects, project.id, 'title', e.target.value)} placeholder="Judul" className="w-full font-bold bg-transparent border-b border-slate-700"/>
+                                                                <textarea value={project.description} onChange={(e) => updateItem(setProjects, projects, project.id, 'description', e.target.value)} placeholder="Deskripsi" className="w-full text-xs bg-transparent border border-slate-700 p-1 rounded h-16"/>
+                                                                <input value={project.link} onChange={(e) => updateItem(setProjects, projects, project.id, 'link', e.target.value)} placeholder="Link Proyek" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <h4 className="font-bold text-lg group-hover:text-cyan-400 transition-colors">{project.title}</h4>
+                                                                    {project.type === 'video' ? <Youtube size={18} className="text-red-500"/> : <ImageIcon size={18} className="text-cyan-400"/>}
+                                                                </div>
+                                                                <p className="text-slate-400 text-sm mb-4 flex-1 line-clamp-3">{project.description}</p>
+                                                                <a href={project.link} target="_blank" className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-white mt-auto">Lihat <ExternalLink size={14}/></a>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    {projects.filter(p => p.category === activeCategory).length === 0 && (
+                                        <div className="col-span-full text-center py-20 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
+                                            <p>Belum ada proyek di kategori ini.</p>
+                                            {isEditing && <p className="text-sm">Klik "Tambah Proyek" di atas.</p>}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </section>
+
+                    {/* Footer */}
+                    <footer className="max-w-6xl mx-auto px-4 mt-20 py-8 border-t border-slate-800 flex justify-between items-center text-slate-600 text-sm">
+                        <p>&copy; {new Date().getFullYear()} {profile.name}. All rights reserved.</p>
+                        <button 
+                            onClick={handleAuthAction}
+                            className={`flex items-center gap-2 px-3 py-1 rounded transition-colors ${isAuthenticated ? 'text-green-500 hover:bg-green-500/10' : 'text-slate-600 hover:text-slate-400'}`}
+                            title={isAuthenticated ? "Logout Admin" : "Login Admin"}
+                        >
                             {isAuthenticated ? <LogOut size={14} /> : <Lock size={14} />}
                             {isAuthenticated ? "Logout" : "Admin"}
                         </button>
-                    </div>
+                    </footer>
                 </div>
-            </nav>
+            );
+        }
 
-            {/* rest of UI (hero, sidebar, projects, etc.) */}
-            {/* For brevity I keep the original UI code structure from your file here —
-               This patch focuses on replacing internal script logic (helpers, upload, autosync).
-               Keep the remainder of your original JSX markup as-is; below is a minimal footer + rendering */}
-            <main className="pt-32 px-4">
-                <div className="max-w-6xl mx-auto">
-                    {/* (Your existing sections here — hero, projects, etc.) */}
-                    {/* To keep this patch safe: the full JSX body remains unchanged from your original file. */}
-                </div>
-            </main>
-
-            <footer className="max-w-6xl mx-auto px-4 mt-20 py-8 border-t border-slate-800 flex justify-between items-center text-slate-600 text-sm">
-                <p>&copy; {new Date().getFullYear()} {profile.name}. All rights reserved.</p>
-                <div className="flex flex-col items-end">
-                    <div className="flex items-center gap-3">
-                        <span className="text-xs text-slate-500">{syncStatus}</span>
-                    </div>
-                </div>
-            </footer>
-        </div>
-    );
-}
-
-const root = createRoot(document.getElementById('root'));
-root.render(<App />);
-</script>
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>
-
