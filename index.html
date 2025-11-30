@@ -71,16 +71,68 @@
     onProgress("Menyusun data baru...");
     const newDataString = `
         // MARKER_START
-        const defaultProfile = ${JSON.stringify(data.profile, null, 4)};
 
-        const defaultProjects = ${JSON.stringify(data.projects, null, 4)};
+        // MARKER_START
+        const defaultProfile = {
+    "name": "Muhammad Azis Faturrohman",
+    "title": "Videografer & Desainer",
+    "bio": "Pembuat konten visual dan desainer kreatif.",
+    "avatar": "",
+    "email": "work@example.com",
+    "phone": "+62 812 3456 7890",
+    "location": "Jakarta, Indonesia"
+};
 
-        const defaultExperience = ${JSON.stringify(data.experience, null, 4)};
+        const defaultProjects = [
+    {
+        "id": 1,
+        "category": "design",
+        "title": "Brand Kopi Senja",
+        "description": "Identitas visual & packaging",
+        "image": "",
+        "type": "image",
+        "link": "#"
+    },
+    {
+        "id": 2,
+        "category": "videography",
+        "title": "Travel Vlog",
+        "description": "Cinematic travel vlog",
+        "videoUrl": "",
+        "type": "video",
+        "link": "#"
+    }
+];
 
-        const defaultEducation = ${JSON.stringify(data.education, null, 4)};
+        const defaultExperience = [
+    {
+        "id": 1,
+        "role": "Senior Visual Designer",
+        "company": "Creative Studio",
+        "period": "2022 - Sekarang",
+        "description": "Art direction & team lead."
+    }
+];
 
-        const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
+        const defaultEducation = [
+    {
+        "id": 1,
+        "degree": "S1 DKV",
+        "school": "Institut Seni",
+        "period": "2015-2019",
+        "description": "Konsentrasi multimedia."
+    }
+];
+
+        const defaultSkills = [
+    "Adobe Premiere",
+    "Photoshop",
+    "Lightroom",
+    "Figma"
+];
         // MARKER_END
+    
+// MARKER_END
     `;
 
     const regex = /(\/\/\s*MARKER_START)[\s\S]*?(\/\/\s*MARKER_END)/;
