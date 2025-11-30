@@ -43,22 +43,18 @@
         import { 
             Edit, Save, Plus, Trash2, ExternalLink, Youtube, Image as ImageIcon, 
             X, Check, Mail, Phone, Briefcase, GraduationCap, Cpu, 
-            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut
+            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Code
         } from 'lucide-react';
 
         // --- Helper: Video Detection (YouTube, Shorts, TikTok) ---
         const getVideoInfo = (url) => {
             if (!url) return { type: null, id: null };
 
-            // 1. Cek YouTube (Standard & Shorts)
-            // Regex menangkap: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/shorts/ID
             const ytMatch = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/);
             if (ytMatch && ytMatch[2].length === 11) {
                 return { type: 'youtube', id: ytMatch[2] };
             }
 
-            // 2. Cek TikTok
-            // Regex menangkap: tiktok.com/@user/video/ID
             const ttMatch = url.match(/tiktok\.com\/@.+\/video\/(\d+)/);
             if (ttMatch && ttMatch[1]) {
                 return { type: 'tiktok', id: ttMatch[1] };
@@ -67,7 +63,8 @@
             return { type: null, id: null };
         };
 
-        // --- Initial Data ---
+        // --- Initial Data (DATA AWAL) ---
+        // Data di bawah ini akan diganti oleh fitur Export jika Anda ingin mengubahnya secara permanen.
         const defaultProfile = {
             name: "Alex Creator",
             title: "Visual Artist & Developer",
@@ -137,11 +134,74 @@
 
         const defaultSkills = ["Adobe Premiere", "Photoshop", "Lightroom", "Figma", "React JS", "Cinematography"];
 
+        function ExportModal({ isOpen, onClose, data }) {
+            if (!isOpen) return null;
+
+            const copyToClipboard = () => {
+                const codeBlock = document.getElementById('generated-code');
+                codeBlock.select();
+                document.execCommand('copy');
+                alert("Kode berhasil disalin! Silakan paste ke file index.html Anda.");
+            };
+
+            const codeString = `
+// --- Initial Data (GANTI BAGIAN INI DI FILE ASLI ANDA) ---
+const defaultProfile = ${JSON.stringify(data.profile, null, 4)};
+
+const defaultProjects = ${JSON.stringify(data.projects, null, 4)};
+
+const defaultExperience = ${JSON.stringify(data.experience, null, 4)};
+
+const defaultEducation = ${JSON.stringify(data.education, null, 4)};
+
+const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
+// --- AKHIR BAGIAN YANG DIGANTI ---
+            `;
+
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl flex flex-col max-h-[80vh]">
+                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800 rounded-t-xl">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                <Code size={20} className="text-cyan-400"/> Export Data Permanen
+                            </h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={20}/></button>
+                        </div>
+                        <div className="p-4 overflow-y-auto flex-1 text-sm text-slate-300 space-y-4">
+                            <div className="bg-blue-900/30 border border-blue-800 p-3 rounded text-blue-200">
+                                <strong>Cara agar perubahan muncul di HP:</strong>
+                                <ol className="list-decimal ml-4 mt-1 space-y-1">
+                                    <li>Salin kode di bawah ini.</li>
+                                    <li>Buka file <code>index.html</code> di komputer Anda menggunakan Text Editor.</li>
+                                    <li>Cari bagian <code>// --- Initial Data ---</code>.</li>
+                                    <li>Hanti (Replace) variabel <code>defaultProfile</code> sampai <code>defaultSkills</code> dengan kode yang Anda salin.</li>
+                                    <li>Simpan file dan Upload ulang ke GitHub.</li>
+                                </ol>
+                            </div>
+                            <textarea 
+                                id="generated-code"
+                                readOnly
+                                className="w-full h-64 bg-slate-950 border border-slate-700 rounded p-4 font-mono text-xs text-green-400 focus:outline-none focus:border-cyan-500"
+                                value={codeString}
+                            ></textarea>
+                        </div>
+                        <div className="p-4 border-t border-slate-700 flex justify-end gap-2 bg-slate-800 rounded-b-xl">
+                            <button onClick={onClose} className="px-4 py-2 rounded text-slate-300 hover:text-white hover:bg-slate-700 transition">Tutup</button>
+                            <button onClick={copyToClipboard} className="px-4 py-2 rounded bg-cyan-600 text-white hover:bg-cyan-500 transition font-bold flex items-center gap-2">
+                                <Code size={16}/> Salin Kode
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         function App() {
             // --- States ---
             const [isAuthenticated, setIsAuthenticated] = useState(false);
             const [isEditing, setIsEditing] = useState(false);
             const [isMounted, setIsMounted] = useState(false);
+            const [showExport, setShowExport] = useState(false);
             const [activeCategory, setActiveCategory] = useState(null); 
             
             // Data States
@@ -166,7 +226,6 @@
                 load('pf_skills_v2', setSkills);
                 setIsMounted(true);
                 
-                // --- CEK STATUS LOGIN SAAT LOAD ---
                 if (window.isLoggedIn && window.isLoggedIn()) {
                     setIsAuthenticated(true);
                 }
@@ -185,7 +244,6 @@
             // --- Handlers ---
             const handleAuthAction = () => {
                 if (isAuthenticated) {
-                    // LOGOUT LOGIC
                     if(confirm("Apakah Anda yakin ingin keluar dari mode Admin?")) {
                         window.doLogout();
                         setIsAuthenticated(false);
@@ -193,7 +251,6 @@
                         alert("Berhasil Logout.");
                     }
                 } else {
-                    // LOGIN REDIRECT
                     window.location.href = "login.html";
                 }
             };
@@ -253,6 +310,13 @@
             return (
                 <div className="min-h-screen text-slate-100 font-sans selection:bg-cyan-500 selection:text-white pb-20">
                     
+                    {/* Export Modal */}
+                    <ExportModal 
+                        isOpen={showExport} 
+                        onClose={() => setShowExport(false)} 
+                        data={{ profile, projects, experience, education, skills }}
+                    />
+
                     {/* Navbar */}
                     <nav className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800">
                         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -261,12 +325,23 @@
                             </span>
                             
                             {isAuthenticated && (
-                                <button 
-                                    onClick={() => setIsEditing(!isEditing)}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isEditing ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}
-                                >
-                                    {isEditing ? <><Save size={16} /> Simpan</> : <><Edit size={16} /> Edit Mode</>}
-                                </button>
+                                <div className="flex gap-2">
+                                    {/* Tombol Export Baru */}
+                                    <button 
+                                        onClick={() => setShowExport(true)}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white transition-all shadow-lg shadow-purple-500/20"
+                                        title="Dapatkan kode untuk update GitHub"
+                                    >
+                                        <Code size={16} /> Export Data
+                                    </button>
+
+                                    <button 
+                                        onClick={() => setIsEditing(!isEditing)}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isEditing ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}
+                                    >
+                                        {isEditing ? <><Save size={16} /> Simpan</> : <><Edit size={16} /> Edit Mode</>}
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </nav>
