@@ -3,12 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- 1. ANTI-CACHE HEADERS (Memaksa browser mengambil data terbaru) -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    
     <title>Portofolio Kreatif Saya</title>
     
     <!-- Tailwind CSS -->
@@ -20,7 +14,9 @@
         "imports": {
             "react": "https://esm.sh/react@18.2.0",
             "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-            "lucide-react": "https://esm.sh/lucide-react@0.263.1"
+            "lucide-react": "https://esm.sh/lucide-react@0.263.1",
+            "firebase/app": "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js",
+            "firebase/firestore": "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"
         }
     }
     </script>
@@ -32,28 +28,45 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
         body { background-color: #020617; }
-        /* Loading Spinner */
-        .loader { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 16px; height: 16px; animation: spin 1s linear infinite; }
+        .loader { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #38bdf8; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
-    <!-- ========================================== -->
-    <!-- 🔐 FILE KEAMANAN EKSTERNAL 🔐              -->
-    <!-- ========================================== -->
+    <!-- 🔐 KEAMANAN -->
     <script src="./auth.js"></script>
 
     <!-- Script Utama Aplikasi -->
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
+        import { initializeApp } from 'firebase/app';
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
         import { 
             Edit, Save, Plus, Trash2, ExternalLink, Youtube, Image as ImageIcon, 
             X, Check, Mail, Phone, Briefcase, GraduationCap, Cpu, 
-            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Code, Github, Upload, RefreshCw
+            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Loader2, Cloud
         } from 'lucide-react';
+
+        // =================================================================
+        // ⚙️ KONFIGURASI FIREBASE (WAJIB DIGANTI DENGAN PUNYA ANDA)
+        // =================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDF_zzvr5Cb0c8kzWg0ZsPe_oupJZn4XYg",
+            authDomain: "portofolio-saya-268d4.firebaseapp.com",
+            projectId: "portofolio-saya-268d4",
+            storageBucket: "portofolio-saya-268d4.firebasestorage.app",
+            messagingSenderId: "376664571796",
+            appId: "1:376664571796:web:eacfd01af86372b4aa9981"
+        };
+        // =================================================================
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const DOC_ID = "main_portfolio"; // ID Dokumen di database
 
         // --- Helper: Video Detection ---
         const getVideoInfo = (url) => {
@@ -65,241 +78,79 @@
             return { type: null, id: null };
         };
 
-        // --- Helper: Base64 Encoding ---
-        function utf8_to_b64(str) { return window.btoa(unescape(encodeURIComponent(str))); }
-        function b64_to_utf8(str) { return decodeURIComponent(escape(window.atob(str))); }
-
-        // --- Initial Data ---
-        // MARKER_START
-        const defaultProfile = {
-    "name": "Muhammad Azis Faturrohman",
-    "title": "Visual Artist & Developer",
-    "bio": "Menggabungkan seni visual dan teknologi. Spesialis dalam fotografi sinematik, desain antarmuka modern, dan pengembangan web interaktif.",
-    "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
-    "email": "work@alexcreator.com",
-    "phone": "+62 812 3456 7890",
-    "location": "Jakarta, Indonesia"
-};
-
-        const defaultProjects = [
-    {
-        "id": 1,
-        "category": "design",
-        "title": "Brand Identity: Kopi Senja",
-        "description": "Desain logo dan packaging untuk startup kopi lokal dengan nuansa modern minimalis.",
-        "image": "https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        "type": "image",
-        "link": "#"
-    },
-    {
-        "id": 2,
-        "category": "videography",
-        "title": "Cinematic Travel Vlog",
-        "description": "Dokumentasi perjalanan wisata Bali dengan color grading sinematik.",
-        "videoUrl": "https://www.youtube.com/watch?v=LXb3EKWsInQ",
-        "type": "video",
-        "link": "#"
-    },
-    {
-        "id": 3,
-        "category": "photography",
-        "title": "Urban Street Photography",
-        "description": "Koleksi foto jalanan Jakarta di malam hari dengan teknik long exposure.",
-        "image": "https://images.unsplash.com/photo-1517789729358-1936c8882046?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        "type": "image",
-        "link": "#"
-    }
-];
-
-        const defaultExperience = [
-    {
-        "id": 1,
-        "role": "Senior Visual Designer",
-        "company": "Creative Studio Ind",
-        "period": "2022 - Sekarang",
-        "description": "Bertanggung jawab atas art direction untuk klien korporat dan manajemen tim kreatif."
-    },
-    {
-        "id": 2,
-        "role": "Freelance Photographer",
-        "company": "Self Employed",
-        "period": "2019 - 2022",
-        "description": "Mengerjakan proyek fotografi komersial, pernikahan, dan event dokumentasi."
-    }
-];
-
-        const defaultEducation = [
-    {
-        "id": 1,
-        "degree": "S1 Desain Komunikasi Visual",
-        "school": "Institut Kesenian Jakarta",
-        "period": "2015 - 2019",
-        "description": "Fokus pada multimedia dan fotografi digital."
-    }
-];
-
-        const defaultSkills = [
-    "Adobe Premiere",
-    "Photoshop",
-    "Lightroom",
-    "Figma",
-    "React JS",
-    "Cinematography"
-];
-            // MARKER_END
-
-        // --- LOGIKA UPLOAD GITHUB TERPUSAT ---
-        const uploadToGitHub = async (creds, data) => {
-            if(!creds.username || !creds.repo || !creds.token) {
-                throw new Error("Kredensial GitHub belum lengkap. Silakan atur di tombol 'Simpan ke GitHub'.");
-            }
-
-            const filePath = 'index.html'; 
-            const apiUrl = `https://api.github.com/repos/${creds.username}/${creds.repo}/contents/${filePath}?ref=${creds.branch || 'main'}`;
-
-            // 1. GET Current File (SHA)
-            const getRes = await fetch(apiUrl + `&t=${new Date().getTime()}`, { // Cache Busting
-                headers: { 'Authorization': `token ${creds.token}`, 'Accept': 'application/vnd.github.v3+json' },
-                cache: 'no-store'
-            });
-
-            if (!getRes.ok) throw new Error(getRes.status === 404 ? "Repository tidak ditemukan." : "Gagal mengambil data dari GitHub.");
-            
-            const fileData = await getRes.json();
-            const currentContent = b64_to_utf8(fileData.content.replace(/\n/g, ''));
-
-            // 2. Prepare Data
-            const newDataString = `
-        const defaultProfile = ${JSON.stringify(data.profile, null, 4)};
-
-        const defaultProjects = ${JSON.stringify(data.projects, null, 4)};
-
-        const defaultExperience = ${JSON.stringify(data.experience, null, 4)};
-
-        const defaultEducation = ${JSON.stringify(data.education, null, 4)};
-
-        const defaultSkills = ${JSON.stringify(data.skills, null, 4)};
-            `;
-
-            const regex = /(\/\/ MARKER_START)[\s\S]*?(\/\/ MARKER_END)/;
-            if (!regex.test(currentContent)) throw new Error("Marker data rusak/hilang di file GitHub.");
-
-            const newFileContent = currentContent.replace(regex, `$1${newDataString}$2`);
-
-            // 3. PUT (Update) File
-            const putRes = await fetch(apiUrl, {
-                method: 'PUT',
-                headers: { 'Authorization': `token ${creds.token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: `Auto-update portfolio (${new Date().toLocaleString()})`,
-                    content: utf8_to_b64(newFileContent),
-                    sha: fileData.sha,
-                    branch: creds.branch || 'main'
-                })
-            });
-
-            if (!putRes.ok) throw new Error("Gagal mengupload ke GitHub.");
-            return true;
+        // --- Default Data (Jika database kosong) ---
+        const defaultData = {
+            profile: {
+                name: "Nama Anda",
+                title: "Profesi Anda",
+                bio: "Deskripsi singkat tentang diri Anda.",
+                avatar: "https://via.placeholder.com/150",
+                email: "email@contoh.com",
+                phone: "+62 812 3456 7890",
+                location: "Jakarta, Indonesia"
+            },
+            projects: [],
+            experience: [],
+            education: [],
+            skills: ["Skill 1", "Skill 2"]
         };
-
-        function GitHubSettingsModal({ isOpen, onClose, onSave }) {
-            const [creds, setCreds] = useState({ username: '', repo: '', token: '', branch: 'main' });
-
-            useEffect(() => {
-                const saved = localStorage.getItem('gh_creds');
-                if (saved) setCreds(JSON.parse(saved));
-            }, [isOpen]);
-
-            const handleSave = () => {
-                localStorage.setItem('gh_creds', JSON.stringify(creds));
-                onSave(creds);
-                onClose();
-            };
-
-            if (!isOpen) return null;
-
-            return (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl">
-                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Github size={24}/> Pengaturan GitHub</h3>
-                        <p className="text-sm text-slate-400 mb-4">Masukkan data repository agar website bisa terupdate otomatis.</p>
-                        <div className="space-y-3">
-                            <input placeholder="GitHub Username" value={creds.username} onChange={e=>setCreds({...creds, username:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm"/>
-                            <input placeholder="Repository Name (cth: portofolio-saya)" value={creds.repo} onChange={e=>setCreds({...creds, repo:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm"/>
-                            <input placeholder="Branch (default: main)" value={creds.branch} onChange={e=>setCreds({...creds, branch:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm"/>
-                            <input type="password" placeholder="Token (ghp_...)" value={creds.token} onChange={e=>setCreds({...creds, token:e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-sm"/>
-                        </div>
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button onClick={onClose} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded">Batal</button>
-                            <button onClick={handleSave} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-bold">Simpan Pengaturan</button>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
 
         function App() {
             const [isAuthenticated, setIsAuthenticated] = useState(false);
             const [isEditing, setIsEditing] = useState(false);
-            const [showGHSettings, setShowGHSettings] = useState(false);
+            const [isLoading, setIsLoading] = useState(true);
             const [isSaving, setIsSaving] = useState(false);
             const [activeCategory, setActiveCategory] = useState(null); 
             
             // Data States
-            const [profile, setProfile] = useState(defaultProfile);
-            const [projects, setProjects] = useState(defaultProjects);
-            const [experience, setExperience] = useState(defaultExperience);
-            const [education, setEducation] = useState(defaultEducation);
-            const [skills, setSkills] = useState(defaultSkills);
+            const [data, setData] = useState(defaultData);
             
             const [newSkillInput, setNewSkillInput] = useState("");
 
+            // --- REALTIME LISTENER ---
             useEffect(() => {
-                const load = (key, setter) => {
-                    const saved = localStorage.getItem(key);
-                    if (saved) setter(JSON.parse(saved));
-                };
+                const docRef = doc(db, "portfolio", DOC_ID);
                 
-                load('pf_profile_v2', setProfile);
-                load('pf_projects_v2', setProjects);
-                load('pf_experience_v2', setExperience);
-                load('pf_education_v2', setEducation);
-                load('pf_skills_v2', setSkills);
-                
+                // Mendengarkan perubahan data secara langsung (Realtime)
+                const unsubscribe = onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        setData(docSnap.data());
+                    } else {
+                        // Jika belum ada data di database, buat data awal
+                        setDoc(docRef, defaultData);
+                        setData(defaultData);
+                    }
+                    setIsLoading(false);
+                }, (error) => {
+                    console.error("Error mengambil data:", error);
+                    alert("Gagal terhubung ke database. Pastikan konfigurasi Firebase benar.");
+                    setIsLoading(false);
+                });
+
+                // Cek status login admin
                 if (window.isLoggedIn && window.isLoggedIn()) {
                     setIsAuthenticated(true);
                 }
+
+                return () => unsubscribe();
             }, []);
 
-            useEffect(() => {
-                localStorage.setItem('pf_profile_v2', JSON.stringify(profile));
-                localStorage.setItem('pf_projects_v2', JSON.stringify(projects));
-                localStorage.setItem('pf_experience_v2', JSON.stringify(experience));
-                localStorage.setItem('pf_education_v2', JSON.stringify(education));
-                localStorage.setItem('pf_skills_v2', JSON.stringify(skills));
-            }, [profile, projects, experience, education, skills]);
-
-            // --- AUTO SAVE FUNCTION ---
-            const handleAutoSave = async () => {
-                const savedCreds = localStorage.getItem('gh_creds');
-                if (!savedCreds) {
-                    setShowGHSettings(true);
-                    return;
-                }
-
+            // --- SAVE TO FIREBASE ---
+            const handleSave = async () => {
                 setIsSaving(true);
                 try {
-                    await uploadToGitHub(JSON.parse(savedCreds), { profile, projects, experience, education, skills });
-                    alert("✅ Berhasil disimpan ke GitHub!\n\nPerubahan akan muncul di HP dalam 1-5 menit (tergantung GitHub).\nJika belum muncul, bersihkan cache browser di HP Anda.");
-                    setIsEditing(false); // Keluar mode edit setelah simpan
-                } catch (err) {
-                    alert("❌ Gagal menyimpan: " + err.message);
-                    if(err.message.includes("Kredensial")) setShowGHSettings(true);
+                    await setDoc(doc(db, "portfolio", DOC_ID), data);
+                    setIsEditing(false);
+                    // Tidak perlu alert, karena data akan terupdate otomatis di UI
+                } catch (error) {
+                    console.error("Error saving document: ", error);
+                    alert("Gagal menyimpan: " + error.message);
                 } finally {
                     setIsSaving(false);
                 }
             };
 
+            // --- Handlers ---
             const handleAuthAction = () => {
                 if (isAuthenticated) {
                     if(confirm("Yakin ingin Logout?")) {
@@ -312,23 +163,58 @@
                 }
             };
 
-            // Generic handlers
-            const handleProfileChange = (e) => setProfile({ ...profile, [e.target.name]: e.target.value });
-            const updateItem = (setter, list, id, field, value) => setter(list.map(item => item.id === id ? { ...item, [field]: value } : item));
-            const deleteItem = (setter, list, id) => confirm("Hapus item?") && setter(list.filter(item => item.id !== id));
-            const addItem = (setter, list, template) => setter([...list, { ...template, id: Date.now() }]);
+            // Generic Data Handlers (Update local state, then handleSave commits to DB)
+            const handleProfileChange = (e) => setData({...data, profile: { ...data.profile, [e.target.name]: e.target.value }});
+            
+            const updateItem = (listName, id, field, value) => {
+                setData({
+                    ...data,
+                    [listName]: data[listName].map(item => item.id === id ? { ...item, [field]: value } : item)
+                });
+            };
+
+            const deleteItem = (listName, id) => {
+                if (confirm("Hapus item ini?")) {
+                    setData({
+                        ...data,
+                        [listName]: data[listName].filter(item => item.id !== id)
+                    });
+                }
+            };
+
+            const addItem = (listName, template) => {
+                setData({
+                    ...data,
+                    [listName]: [...data[listName], { ...template, id: Date.now() }]
+                });
+            };
             
             const addProject = () => {
                 if (!activeCategory) return;
                 const defaultType = activeCategory === 'videography' ? 'video' : 'image';
-                setProjects([...projects, { 
+                const defaultImage = activeCategory === 'videography' ? '' : 'https://via.placeholder.com/600x400';
+                
+                const newProj = { 
                     id: Date.now(), category: activeCategory, title: "Proyek Baru", 
-                    description: "Deskripsi...", image: "", videoUrl: "", type: defaultType, link: "#" 
-                }]);
+                    description: "Deskripsi...", image: defaultImage, videoUrl: "", type: defaultType, link: "#" 
+                };
+                
+                setData({
+                    ...data,
+                    projects: [...data.projects, newProj]
+                });
             };
 
-            const addTag = (setter, list, input, setInput) => { if (input.trim()) { setter([...list, input.trim()]); setInput(""); } };
-            const removeTag = (setter, list, index) => setter(list.filter((_, i) => i !== index));
+            const addTag = () => {
+                if (newSkillInput.trim()) { 
+                    setData({ ...data, skills: [...data.skills, newSkillInput.trim()] });
+                    setNewSkillInput(""); 
+                }
+            };
+            
+            const removeTag = (index) => {
+                setData({ ...data, skills: data.skills.filter((_, i) => i !== index) });
+            };
 
             const categories = [
                 { id: 'videography', label: 'Videografi', icon: Video, color: 'from-red-500 to-pink-600', desc: 'Video Youtube, Shorts, dan TikTok.' },
@@ -338,32 +224,35 @@
 
             const currentCategoryData = categories.find(c => c.id === activeCategory);
 
+            if (isLoading) {
+                return (
+                    <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-white gap-4">
+                        <div className="loader"></div>
+                        <p className="animate-pulse text-sm text-slate-400">Menghubungkan ke Database...</p>
+                    </div>
+                );
+            }
+
             return (
                 <div className="min-h-screen text-slate-100 font-sans selection:bg-cyan-500 selection:text-white pb-20">
                     
-                    <GitHubSettingsModal 
-                        isOpen={showGHSettings} 
-                        onClose={() => setShowGHSettings(false)} 
-                        onSave={(creds) => alert("Pengaturan tersimpan. Silakan klik 'Simpan & Upload' lagi.")}
-                    />
-
                     {/* Navbar */}
                     <nav className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800">
                         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
                             <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                                {profile.name}
+                                {data.profile.name}
                             </span>
                             
                             {isAuthenticated && (
                                 <div className="flex gap-2">
                                     {isEditing ? (
                                         <button 
-                                            onClick={handleAutoSave}
+                                            onClick={handleSave}
                                             disabled={isSaving}
                                             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isSaving ? 'bg-slate-700 cursor-wait' : 'bg-green-600 hover:bg-green-700 text-white'}`}
                                         >
-                                            {isSaving ? <div className="loader"></div> : <Save size={16} />}
-                                            {isSaving ? 'Mengupload...' : 'Simpan & Upload'}
+                                            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Cloud size={16} />}
+                                            {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
                                         </button>
                                     ) : (
                                         <button 
@@ -383,13 +272,13 @@
                         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-8 md:gap-12 animate-fade-in">
                             <div className="relative shrink-0">
                                 <img 
-                                    src={profile.avatar} 
+                                    src={data.profile.avatar} 
                                     alt="Profile" 
                                     className="w-32 h-32 md:w-48 md:h-48 rounded-full object-cover border-4 border-slate-800 shadow-2xl ring-2 ring-cyan-500/50"
                                     onError={(e) => {e.target.src = 'https://via.placeholder.com/150'}}
                                 />
                                 {isEditing && (
-                                    <input type="text" name="avatar" value={profile.avatar} onChange={handleProfileChange} 
+                                    <input type="text" name="avatar" value={data.profile.avatar} onChange={handleProfileChange} 
                                         className="absolute -bottom-4 left-0 w-full text-[10px] bg-slate-800 border border-slate-600 rounded p-1 text-center" placeholder="URL Foto"
                                     />
                                 )}
@@ -398,26 +287,26 @@
                             <div className="text-center md:text-left flex-1 space-y-4">
                                 {isEditing ? (
                                     <div className="space-y-3">
-                                        <input type="text" name="name" value={profile.name} onChange={handleProfileChange} className="w-full text-4xl font-bold bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Nama Lengkap"/>
-                                        <input type="text" name="title" value={profile.title} onChange={handleProfileChange} className="w-full text-xl text-cyan-400 bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Judul Pekerjaan"/>
-                                        <textarea name="bio" value={profile.bio} onChange={handleProfileChange} className="w-full bg-slate-900/50 border border-slate-700 rounded p-2 h-24 outline-none focus:border-cyan-500" placeholder="Biografi singkat..."/>
+                                        <input type="text" name="name" value={data.profile.name} onChange={handleProfileChange} className="w-full text-4xl font-bold bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Nama Lengkap"/>
+                                        <input type="text" name="title" value={data.profile.title} onChange={handleProfileChange} className="w-full text-xl text-cyan-400 bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Judul Pekerjaan"/>
+                                        <textarea name="bio" value={data.profile.bio} onChange={handleProfileChange} className="w-full bg-slate-900/50 border border-slate-700 rounded p-2 h-24 outline-none focus:border-cyan-500" placeholder="Biografi singkat..."/>
                                         <div className="grid grid-cols-2 gap-2">
-                                            <input type="text" name="email" value={profile.email} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm" placeholder="Email"/>
-                                            <input type="text" name="phone" value={profile.phone} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm" placeholder="Telepon"/>
-                                            <input type="text" name="location" value={profile.location} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm col-span-2" placeholder="Lokasi"/>
+                                            <input type="text" name="email" value={data.profile.email} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm" placeholder="Email"/>
+                                            <input type="text" name="phone" value={data.profile.phone} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm" placeholder="Telepon"/>
+                                            <input type="text" name="location" value={data.profile.location} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm col-span-2" placeholder="Lokasi"/>
                                         </div>
                                     </div>
                                 ) : (
                                     <>
                                         <div>
-                                            <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{profile.name}</h1>
-                                            <p className="text-xl text-cyan-400 font-medium">{profile.title}</p>
+                                            <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{data.profile.name}</h1>
+                                            <p className="text-xl text-cyan-400 font-medium">{data.profile.title}</p>
                                         </div>
-                                        <p className="text-slate-400 leading-relaxed max-w-2xl">{profile.bio}</p>
+                                        <p className="text-slate-400 leading-relaxed max-w-2xl">{data.profile.bio}</p>
                                         <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-slate-300 pt-2">
-                                            {profile.email && <a href={`mailto:${profile.email}`} className="flex items-center gap-2 hover:text-white"><Mail size={16} /> {profile.email}</a>}
-                                            {profile.phone && <a href={`tel:${profile.phone}`} className="flex items-center gap-2 hover:text-white"><Phone size={16} /> {profile.phone}</a>}
-                                            {profile.location && <span className="flex items-center gap-2"><MapPin size={16} /> {profile.location}</span>}
+                                            {data.profile.email && <a href={`mailto:${data.profile.email}`} className="flex items-center gap-2 hover:text-white"><Mail size={16} /> {data.profile.email}</a>}
+                                            {data.profile.phone && <a href={`tel:${data.profile.phone}`} className="flex items-center gap-2 hover:text-white"><Phone size={16} /> {data.profile.phone}</a>}
+                                            {data.profile.location && <span className="flex items-center gap-2"><MapPin size={16} /> {data.profile.location}</span>}
                                         </div>
                                     </>
                                 )}
@@ -426,6 +315,7 @@
                     </header>
 
                     <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-12 mt-8">
+                        
                         {/* LEFT COLUMN: Skills */}
                         <aside className="space-y-12 lg:col-span-1">
                             <section className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
@@ -433,10 +323,10 @@
                                     <Cpu className="text-cyan-500" size={20} /> Keterampilan
                                 </h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {skills.map((skill, index) => (
+                                    {data.skills.map((skill, index) => (
                                         <span key={index} className="px-3 py-1 bg-slate-800 text-cyan-300 text-sm rounded-full flex items-center gap-2 border border-slate-700">
                                             {skill}
-                                            {isEditing && <button onClick={() => removeTag(setSkills, skills, index)} className="hover:text-red-400"><X size={12}/></button>}
+                                            {isEditing && <button onClick={() => removeTag(index)} className="hover:text-red-400"><X size={12}/></button>}
                                         </span>
                                     ))}
                                 </div>
@@ -448,9 +338,9 @@
                                             onChange={(e) => setNewSkillInput(e.target.value)} 
                                             className="flex-1 bg-slate-950 border border-slate-700 rounded px-3 py-1 text-sm outline-none focus:border-cyan-500"
                                             placeholder="Tambah skill..."
-                                            onKeyPress={(e) => e.key === 'Enter' && addTag(setSkills, skills, newSkillInput, setNewSkillInput)}
+                                            onKeyPress={(e) => e.key === 'Enter' && addTag()}
                                         />
-                                        <button onClick={() => addTag(setSkills, skills, newSkillInput, setNewSkillInput)} className="bg-cyan-600 p-1 rounded hover:bg-cyan-500"><Plus size={18}/></button>
+                                        <button onClick={addTag} className="bg-cyan-600 p-1 rounded hover:bg-cyan-500"><Plus size={18}/></button>
                                     </div>
                                 )}
                             </section>
@@ -465,20 +355,20 @@
                                         <div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><Briefcase size={24}/></div>
                                         Pengalaman Kerja
                                     </h3>
-                                    {isEditing && <button onClick={() => addItem(setExperience, experience, { role: "Peran Baru", company: "Perusahaan", period: "Tahun", description: "Deskripsi..." })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
+                                    {isEditing && <button onClick={() => addItem("experience", { role: "Peran Baru", company: "Perusahaan", period: "Tahun", description: "Deskripsi..." })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
                                 </div>
                                 <div className="space-y-8">
-                                    {experience.map((exp) => (
+                                    {data.experience.map((exp) => (
                                         <div key={exp.id} className="group relative bg-slate-900/30 p-6 rounded-2xl border border-slate-800 hover:border-cyan-900/50 transition-colors">
-                                            {isEditing && <button onClick={() => deleteItem(setExperience, experience, exp.id)} className="absolute top-4 right-4 text-slate-600 hover:text-red-500"><Trash2 size={18}/></button>}
+                                            {isEditing && <button onClick={() => deleteItem("experience", exp.id)} className="absolute top-4 right-4 text-slate-600 hover:text-red-500"><Trash2 size={18}/></button>}
                                             {isEditing ? (
                                                 <div className="space-y-3">
-                                                    <input value={exp.role} onChange={(e) => updateItem(setExperience, experience, exp.id, 'role', e.target.value)} className="w-full font-bold text-lg bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Jabatan"/>
+                                                    <input value={exp.role} onChange={(e) => updateItem("experience", exp.id, 'role', e.target.value)} className="w-full font-bold text-lg bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Jabatan"/>
                                                     <div className="flex gap-2">
-                                                        <input value={exp.company} onChange={(e) => updateItem(setExperience, experience, exp.id, 'company', e.target.value)} className="flex-1 text-cyan-400 bg-transparent border-b border-slate-700 outline-none" placeholder="Perusahaan"/>
-                                                        <input value={exp.period} onChange={(e) => updateItem(setExperience, experience, exp.id, 'period', e.target.value)} className="w-1/3 text-slate-500 bg-transparent border-b border-slate-700 outline-none text-right" placeholder="Tahun"/>
+                                                        <input value={exp.company} onChange={(e) => updateItem("experience", exp.id, 'company', e.target.value)} className="flex-1 text-cyan-400 bg-transparent border-b border-slate-700 outline-none" placeholder="Perusahaan"/>
+                                                        <input value={exp.period} onChange={(e) => updateItem("experience", exp.id, 'period', e.target.value)} className="w-1/3 text-slate-500 bg-transparent border-b border-slate-700 outline-none text-right" placeholder="Tahun"/>
                                                     </div>
-                                                    <textarea value={exp.description} onChange={(e) => updateItem(setExperience, experience, exp.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700 h-24" placeholder="Deskripsi..."/>
+                                                    <textarea value={exp.description} onChange={(e) => updateItem("experience", exp.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700 h-24" placeholder="Deskripsi..."/>
                                                 </div>
                                             ) : (
                                                 <>
@@ -504,19 +394,19 @@
                                         <div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><GraduationCap size={24}/></div>
                                         Riwayat Pendidikan
                                     </h3>
-                                    {isEditing && <button onClick={() => addItem(setEducation, education, { degree: "Gelar", school: "Sekolah", period: "Tahun", description: "Deskripsi..." })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
+                                    {isEditing && <button onClick={() => addItem("education", { degree: "Gelar", school: "Sekolah", period: "Tahun", description: "Deskripsi..." })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
                                 </div>
                                 <div className="space-y-6">
-                                    {education.map((edu) => (
+                                    {data.education.map((edu) => (
                                         <div key={edu.id} className="relative pl-8 border-l-2 border-slate-800 hover:border-cyan-500 transition-colors py-2">
                                             <div className="absolute -left-[9px] top-3 w-4 h-4 rounded-full bg-slate-950 border-2 border-cyan-500"></div>
-                                            {isEditing && <button onClick={() => deleteItem(setEducation, education, edu.id)} className="absolute top-0 right-0 text-slate-600 hover:text-red-500"><Trash2 size={16}/></button>}
+                                            {isEditing && <button onClick={() => deleteItem("education", edu.id)} className="absolute top-0 right-0 text-slate-600 hover:text-red-500"><Trash2 size={16}/></button>}
                                             {isEditing ? (
                                                 <div className="space-y-2">
-                                                    <input value={edu.degree} onChange={(e) => updateItem(setEducation, education, edu.id, 'degree', e.target.value)} className="w-full font-bold bg-transparent border-b border-slate-700" placeholder="Gelar"/>
-                                                    <input value={edu.school} onChange={(e) => updateItem(setEducation, education, edu.id, 'school', e.target.value)} className="w-full text-cyan-400 bg-transparent border-b border-slate-700" placeholder="Kampus"/>
-                                                    <input value={edu.period} onChange={(e) => updateItem(setEducation, education, edu.id, 'period', e.target.value)} className="w-full text-sm text-slate-500 bg-transparent border-b border-slate-700" placeholder="Tahun"/>
-                                                    <textarea value={edu.description} onChange={(e) => updateItem(setEducation, education, edu.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700" placeholder="Deskripsi..."/>
+                                                    <input value={edu.degree} onChange={(e) => updateItem("education", edu.id, 'degree', e.target.value)} className="w-full font-bold bg-transparent border-b border-slate-700" placeholder="Gelar"/>
+                                                    <input value={edu.school} onChange={(e) => updateItem("education", edu.id, 'school', e.target.value)} className="w-full text-cyan-400 bg-transparent border-b border-slate-700" placeholder="Kampus"/>
+                                                    <input value={edu.period} onChange={(e) => updateItem("education", edu.id, 'period', e.target.value)} className="w-full text-sm text-slate-500 bg-transparent border-b border-slate-700" placeholder="Tahun"/>
+                                                    <textarea value={edu.description} onChange={(e) => updateItem("education", edu.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700" placeholder="Deskripsi..."/>
                                                 </div>
                                             ) : (
                                                 <>
@@ -538,31 +428,45 @@
                     {/* FULL WIDTH PROJECTS SECTION */}
                     <section id="projects" className="max-w-6xl mx-auto px-4 mt-20 mb-20">
                         {!activeCategory ? (
+                            // --- CATEGORY SELECTOR VIEW ---
                             <div className="space-y-8 animate-fade-in">
                                 <h3 className="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                                     Kategori Portofolio
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     {categories.map((cat) => (
-                                        <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className="group relative h-64 rounded-2xl overflow-hidden border border-slate-800 hover:border-slate-600 transition-all text-left">
+                                        <button
+                                            key={cat.id}
+                                            onClick={() => setActiveCategory(cat.id)}
+                                            className="group relative h-64 rounded-2xl overflow-hidden border border-slate-800 hover:border-slate-600 transition-all text-left"
+                                        >
                                             <div className={`absolute inset-0 bg-gradient-to-br ${cat.color} opacity-10 group-hover:opacity-20 transition-opacity`}></div>
                                             <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px] group-hover:backdrop-blur-none transition-all"></div>
+                                            
                                             <div className="relative p-8 h-full flex flex-col items-center justify-center text-center space-y-4">
                                                 <div className="p-4 bg-slate-900 rounded-full border border-slate-700 group-hover:scale-110 transition-transform">
                                                     <cat.icon size={32} className="text-slate-200" />
                                                 </div>
                                                 <h4 className="text-2xl font-bold text-white group-hover:text-cyan-400 transition-colors">{cat.label}</h4>
-                                                <p className="text-sm text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">{cat.desc}</p>
+                                                <p className="text-sm text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                                                    {cat.desc}
+                                                </p>
                                             </div>
                                         </button>
                                     ))}
                                 </div>
                             </div>
                         ) : (
+                            // --- SPECIFIC CATEGORY VIEW ---
                             <div className="space-y-8 animate-fade-in">
                                 <div className="flex items-center justify-between mb-8 border-b border-slate-800 pb-4">
                                     <div className="flex items-center gap-4">
-                                        <button onClick={() => setActiveCategory(null)} className="p-2 rounded-full hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"><ArrowLeft size={24} /></button>
+                                        <button 
+                                            onClick={() => setActiveCategory(null)}
+                                            className="p-2 rounded-full hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
+                                        >
+                                            <ArrowLeft size={24} />
+                                        </button>
                                         <div>
                                             <h3 className="text-2xl font-bold text-white flex items-center gap-2">
                                                 {currentCategoryData?.icon && <currentCategoryData.icon size={24} className="text-cyan-500"/>}
@@ -579,35 +483,50 @@
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {projects
+                                    {data.projects
                                         .filter(p => p.category === activeCategory)
                                         .map((project) => {
+                                            // Extract video info for this specific project
                                             const { type: videoType, id: videoId } = getVideoInfo(project.videoUrl);
+                                            
                                             return (
                                                 <div key={project.id} className="bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800 hover:border-cyan-500/50 transition-all group flex flex-col">
                                                     <div className="relative aspect-video bg-black">
                                                         {project.type === 'video' && videoId ? (
-                                                            <iframe className="w-full h-full" src={videoType === 'youtube' ? `https://www.youtube.com/embed/${videoId}` : `https://www.tiktok.com/embed/v2/${videoId}`} title={project.title} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
+                                                            <iframe
+                                                                className="w-full h-full"
+                                                                src={videoType === 'youtube' 
+                                                                    ? `https://www.youtube.com/embed/${videoId}` 
+                                                                    : `https://www.tiktok.com/embed/v2/${videoId}`
+                                                                }
+                                                                title={project.title}
+                                                                frameBorder="0"
+                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                allowFullScreen
+                                                            ></iframe>
                                                         ) : (
                                                             <img src={project.image} alt={project.title} className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://via.placeholder.com/600x400'}/>
                                                         )}
-                                                        {isEditing && <button onClick={() => deleteItem(setProjects, projects, project.id)} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 z-10"><Trash2 size={16}/></button>}
+                                                        
+                                                        {isEditing && (
+                                                            <button onClick={() => deleteItem("projects", project.id)} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 z-10"><Trash2 size={16}/></button>
+                                                        )}
                                                     </div>
                                                     <div className="p-5 flex-1 flex flex-col">
                                                         {isEditing ? (
                                                             <div className="space-y-3 flex-1">
                                                                 <div className="flex gap-2 text-xs">
-                                                                    <button onClick={() => updateItem(setProjects, projects, project.id, 'type', 'image')} className={`flex-1 py-1 rounded ${project.type === 'image' ? 'bg-cyan-600' : 'bg-slate-700'}`}>Foto</button>
-                                                                    <button onClick={() => updateItem(setProjects, projects, project.id, 'type', 'video')} className={`flex-1 py-1 rounded ${project.type === 'video' ? 'bg-red-600' : 'bg-slate-700'}`}>Video</button>
+                                                                    <button onClick={() => updateItem("projects", project.id, 'type', 'image')} className={`flex-1 py-1 rounded ${project.type === 'image' ? 'bg-cyan-600' : 'bg-slate-700'}`}>Foto</button>
+                                                                    <button onClick={() => updateItem("projects", project.id, 'type', 'video')} className={`flex-1 py-1 rounded ${project.type === 'video' ? 'bg-red-600' : 'bg-slate-700'}`}>Video</button>
                                                                 </div>
                                                                 {project.type === 'image' ? (
-                                                                    <input value={project.image} onChange={(e) => updateItem(setProjects, projects, project.id, 'image', e.target.value)} placeholder="URL Gambar" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                                    <input value={project.image} onChange={(e) => updateItem("projects", project.id, 'image', e.target.value)} placeholder="URL Gambar" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
                                                                 ) : (
-                                                                    <input value={project.videoUrl} onChange={(e) => updateItem(setProjects, projects, project.id, 'videoUrl', e.target.value)} placeholder="URL YouTube / Shorts / TikTok" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                                    <input value={project.videoUrl} onChange={(e) => updateItem("projects", project.id, 'videoUrl', e.target.value)} placeholder="URL YouTube / Shorts / TikTok" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
                                                                 )}
-                                                                <input value={project.title} onChange={(e) => updateItem(setProjects, projects, project.id, 'title', e.target.value)} placeholder="Judul" className="w-full font-bold bg-transparent border-b border-slate-700"/>
-                                                                <textarea value={project.description} onChange={(e) => updateItem(setProjects, projects, project.id, 'description', e.target.value)} placeholder="Deskripsi" className="w-full text-xs bg-transparent border border-slate-700 p-1 rounded h-16"/>
-                                                                <input value={project.link} onChange={(e) => updateItem(setProjects, projects, project.id, 'link', e.target.value)} placeholder="Link Proyek" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                                <input value={project.title} onChange={(e) => updateItem("projects", project.id, 'title', e.target.value)} placeholder="Judul" className="w-full font-bold bg-transparent border-b border-slate-700"/>
+                                                                <textarea value={project.description} onChange={(e) => updateItem("projects", project.id, 'description', e.target.value)} placeholder="Deskripsi" className="w-full text-xs bg-transparent border border-slate-700 p-1 rounded h-16"/>
+                                                                <input value={project.link} onChange={(e) => updateItem("projects", project.id, 'link', e.target.value)} placeholder="Link Proyek" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
                                                             </div>
                                                         ) : (
                                                             <>
@@ -623,7 +542,7 @@
                                                 </div>
                                             );
                                         })}
-                                    {projects.filter(p => p.category === activeCategory).length === 0 && (
+                                    {data.projects.filter(p => p.category === activeCategory).length === 0 && (
                                         <div className="col-span-full text-center py-20 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
                                             <p>Belum ada proyek di kategori ini.</p>
                                             {isEditing && <p className="text-sm">Klik "Tambah Proyek" di atas.</p>}
@@ -636,7 +555,7 @@
 
                     {/* Footer */}
                     <footer className="max-w-6xl mx-auto px-4 mt-20 py-8 border-t border-slate-800 flex justify-between items-center text-slate-600 text-sm">
-                        <p>&copy; {new Date().getFullYear()} {profile.name}. All rights reserved.</p>
+                        <p>&copy; {new Date().getFullYear()} {data.profile.name}. All rights reserved.</p>
                         <button 
                             onClick={handleAuthAction}
                             className={`flex items-center gap-2 px-3 py-1 rounded transition-colors ${isAuthenticated ? 'text-green-500 hover:bg-green-500/10' : 'text-slate-600 hover:text-slate-400'}`}
