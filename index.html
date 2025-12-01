@@ -6,10 +6,8 @@
     <link rel="icon" href="Red Abstract Fire Letter A Logo.png">
     <title>Muhammad Azis Faturrohman</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Import Map -->
     <script type="importmap">
     {
         "imports": {
@@ -22,7 +20,6 @@
     }
     </script>
     
-    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
@@ -36,10 +33,8 @@
 <body>
     <div id="root"></div>
 
-    <!-- 🔐 KEAMANAN -->
     <script src="./auth.js"></script>
 
-    <!-- Script Utama Aplikasi -->
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
@@ -48,11 +43,11 @@
         import { 
             Edit, Save, Plus, Trash2, ExternalLink, Youtube, Image as ImageIcon, 
             X, Check, Mail, Phone, Briefcase, GraduationCap, Cpu, 
-            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Loader2, Cloud
+            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Loader2, Cloud, Globe, AlertCircle
         } from 'lucide-react';
 
         // =================================================================
-        // ⚙️ KONFIGURASI FIREBASE (WAJIB DIGANTI DENGAN PUNYA ANDA)
+        // ⚙️ KONFIGURASI FIREBASE
         // =================================================================
         const firebaseConfig = {
             apiKey: "AIzaSyDF_zzvr5Cb0c8kzWg0ZsPe_oupJZn4XYg",
@@ -64,12 +59,106 @@
         };
         // =================================================================
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const DOC_ID = "main_portfolio"; // ID Dokumen di database
+        const DOC_ID = "main_portfolio";
 
-        // --- Helper: Video Detection ---
+        // --- KAMUS BAHASA (UI STATIS) ---
+        const TRANSLATIONS = {
+            id: {
+                editMode: "Mode Edit",
+                save: "Simpan",
+                saving: "Menyimpan...",
+                skills: "Keterampilan",
+                addSkill: "Tambah skill...",
+                experience: "Pengalaman Kerja",
+                education: "Riwayat Pendidikan",
+                projects: "Project",
+                projectList: "Daftar Proyek",
+                showProjectList: "Menampilkan daftar proyek",
+                addProject: "Tambah Proyek",
+                noProjects: "Belum ada proyek di kategori ini.",
+                clickAdd: 'Klik "Tambah Proyek" di atas.',
+                view: "Lihat",
+                video: "Video",
+                photo: "Foto",
+                back: "Kembali",
+                editingInfo: "Anda sedang mengedit konten Bahasa Indonesia.",
+                // Categories
+                videography: "Videografi",
+                videography_desc: "Video Youtube, Shorts, dan TikTok.",
+                design: "Desain Grafis",
+                design_desc: "Branding, UI/UX, dan ilustrasi digital.",
+                photography: "Fotografi",
+                photography_desc: "Potret, lanskap, dan fotografi jalanan.",
+                // Placeholders
+                ph_name: "Nama Lengkap",
+                ph_title: "Judul Pekerjaan",
+                ph_bio: "Biografi singkat...",
+                ph_role: "Jabatan",
+                ph_company: "Perusahaan",
+                ph_year: "Tahun",
+                ph_desc: "Deskripsi...",
+                ph_degree: "Gelar",
+                ph_school: "Kampus",
+                ph_imgUrl: "URL Gambar",
+                ph_vidUrl: "URL YouTube / Shorts / TikTok",
+                ph_projTitle: "Judul Proyek",
+                ph_link: "Link Proyek",
+                // Auth
+                logout: "Keluar",
+                admin: "Admin",
+                confirmLogout: "Yakin ingin Logout?",
+                confirmDelete: "Hapus item ini?"
+            },
+            en: {
+                editMode: "Edit Mode",
+                save: "Save",
+                saving: "Saving...",
+                skills: "Skills",
+                addSkill: "Add skill...",
+                experience: "Work Experience",
+                education: "Education",
+                projects: "Projects",
+                projectList: "Project List",
+                showProjectList: "Showing projects for",
+                addProject: "Add Project",
+                noProjects: "No projects in this category yet.",
+                clickAdd: 'Click "Add Project" above.',
+                view: "View",
+                video: "Video",
+                photo: "Photo",
+                back: "Back",
+                editingInfo: "You are editing English content.",
+                // Categories
+                videography: "Videography",
+                videography_desc: "Youtube Videos, Shorts, and TikTok.",
+                design: "Graphic Design",
+                design_desc: "Branding, UI/UX, and digital illustration.",
+                photography: "Photography",
+                photography_desc: "Portrait, landscape, and street photography.",
+                // Placeholders
+                ph_name: "Full Name",
+                ph_title: "Job Title (English)",
+                ph_bio: "Short biography (English)...",
+                ph_role: "Role / Position (English)",
+                ph_company: "Company",
+                ph_year: "Year",
+                ph_desc: "Description (English)...",
+                ph_degree: "Degree (English)",
+                ph_school: "School / University",
+                ph_imgUrl: "Image URL",
+                ph_vidUrl: "YouTube / Shorts / TikTok URL",
+                ph_projTitle: "Project Title (English)",
+                ph_link: "Project Link",
+                // Auth
+                logout: "Logout",
+                admin: "Admin",
+                confirmLogout: "Are you sure you want to Logout?",
+                confirmDelete: "Delete this item?"
+            }
+        };
+
         const getVideoInfo = (url) => {
             if (!url) return { type: null, id: null };
             const ytMatch = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/);
@@ -79,7 +168,6 @@
             return { type: null, id: null };
         };
 
-        // --- Default Data (Jika database kosong) ---
         const defaultData = {
             profile: {
                 name: "Nama Anda",
@@ -102,33 +190,48 @@
             const [isLoading, setIsLoading] = useState(true);
             const [isSaving, setIsSaving] = useState(false);
             const [activeCategory, setActiveCategory] = useState(null); 
-            
-            // Data States
             const [data, setData] = useState(defaultData);
-            
             const [newSkillInput, setNewSkillInput] = useState("");
+
+            // --- LANGUAGE STATE ---
+            const [lang, setLang] = useState(() => localStorage.getItem('portfolio_lang') || 'id');
+            const t = TRANSLATIONS[lang];
+
+            const toggleLang = () => {
+                const newLang = lang === 'id' ? 'en' : 'id';
+                setLang(newLang);
+                localStorage.setItem('portfolio_lang', newLang);
+            };
+
+            // --- HELPER UNTUK KONTEN DINAMIS ---
+            // Mengambil konten berdasarkan bahasa aktif
+            // Jika bahasa Inggris kosong, gunakan bahasa Indonesia (fallback)
+            const getContent = (obj, key) => {
+                if (!obj) return "";
+                if (lang === 'en') {
+                    // Cek apakah ada field _en (contoh: bio_en)
+                    const valEn = obj[key + '_en'];
+                    return valEn ? valEn : (obj[key] || ""); 
+                }
+                return obj[key] || "";
+            };
 
             // --- REALTIME LISTENER ---
             useEffect(() => {
                 const docRef = doc(db, "portfolio", DOC_ID);
-                
-                // Mendengarkan perubahan data secara langsung (Realtime)
                 const unsubscribe = onSnapshot(docRef, (docSnap) => {
                     if (docSnap.exists()) {
                         setData(docSnap.data());
                     } else {
-                        // Jika belum ada data di database, buat data awal
                         setDoc(docRef, defaultData);
                         setData(defaultData);
                     }
                     setIsLoading(false);
                 }, (error) => {
                     console.error("Error mengambil data:", error);
-                    alert("Gagal terhubung ke database. Pastikan konfigurasi Firebase benar.");
                     setIsLoading(false);
                 });
 
-                // Cek status login admin
                 if (window.isLoggedIn && window.isLoggedIn()) {
                     setIsAuthenticated(true);
                 }
@@ -136,13 +239,11 @@
                 return () => unsubscribe();
             }, []);
 
-            // --- SAVE TO FIREBASE ---
             const handleSave = async () => {
                 setIsSaving(true);
                 try {
                     await setDoc(doc(db, "portfolio", DOC_ID), data);
                     setIsEditing(false);
-                    // Tidak perlu alert, karena data akan terupdate otomatis di UI
                 } catch (error) {
                     console.error("Error saving document: ", error);
                     alert("Gagal menyimpan: " + error.message);
@@ -151,10 +252,9 @@
                 }
             };
 
-            // --- Handlers ---
             const handleAuthAction = () => {
                 if (isAuthenticated) {
-                    if(confirm("Yakin ingin Logout?")) {
+                    if(confirm(t.confirmLogout)) {
                         window.doLogout();
                         setIsAuthenticated(false);
                         setIsEditing(false);
@@ -164,18 +264,35 @@
                 }
             };
 
-            // Generic Data Handlers (Update local state, then handleSave commits to DB)
-            const handleProfileChange = (e) => setData({...data, profile: { ...data.profile, [e.target.name]: e.target.value }});
+            // --- DATA HANDLERS YANG SUDAH SUPPORT MULTI-BAHASA ---
             
-            const updateItem = (listName, id, field, value) => {
+            // 1. Profile Handler
+            const handleProfileChange = (e) => {
+                const baseField = e.target.name; 
+                // Jika lang='en', kita update field dengan suffix _en (kecuali field universal seperti email/phone)
+                const isTranslatable = ['title', 'bio'].includes(baseField);
+                const targetField = (lang === 'en' && isTranslatable) ? baseField + '_en' : baseField;
+                
+                setData({...data, profile: { ...data.profile, [targetField]: e.target.value }});
+            };
+            
+            // 2. List Item Handler (Experience, Education, Projects)
+            const updateItem = (listName, id, baseField, value) => {
+                // Tentukan field mana yang bisa ditranslate
+                const translatableFields = ['role', 'degree', 'description', 'title', 'school', 'company']; 
+                const isTranslatable = translatableFields.includes(baseField);
+                
+                // Jika sedang mode EN, simpan ke field_en
+                const targetField = (lang === 'en' && isTranslatable) ? baseField + '_en' : baseField;
+
                 setData({
                     ...data,
-                    [listName]: data[listName].map(item => item.id === id ? { ...item, [field]: value } : item)
+                    [listName]: data[listName].map(item => item.id === id ? { ...item, [targetField]: value } : item)
                 });
             };
 
             const deleteItem = (listName, id) => {
-                if (confirm("Hapus item ini?")) {
+                if (confirm(t.confirmDelete)) {
                     setData({
                         ...data,
                         [listName]: data[listName].filter(item => item.id !== id)
@@ -217,10 +334,11 @@
                 setData({ ...data, skills: data.skills.filter((_, i) => i !== index) });
             };
 
+            // Kategori UI
             const categories = [
-                { id: 'videography', label: 'Videografi', icon: Video, color: 'from-red-500 to-pink-600', desc: 'Video Youtube, Shorts, dan TikTok.' },
-                { id: 'design', label: 'Desain Grafis', icon: Palette, color: 'from-purple-500 to-indigo-600', desc: 'Branding, UI/UX, dan ilustrasi digital.' },
-                { id: 'photography', label: 'Fotografi', icon: Camera, color: 'from-green-400 to-emerald-600', desc: 'Potret, lanskap, dan fotografi jalanan.' }
+                { id: 'videography', label: t.videography, icon: Video, color: 'from-red-500 to-pink-600', desc: t.videography_desc },
+                { id: 'design', label: t.design, icon: Palette, color: 'from-purple-500 to-indigo-600', desc: t.design_desc },
+                { id: 'photography', label: t.photography, icon: Camera, color: 'from-green-400 to-emerald-600', desc: t.photography_desc }
             ];
 
             const currentCategoryData = categories.find(c => c.id === activeCategory);
@@ -229,7 +347,6 @@
                 return (
                     <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-white gap-4">
                         <div className="loader"></div>
-                        <p className="animate-pulse text-sm text-slate-400">Menghubungkan ke Database...</p>
                     </div>
                 );
             }
@@ -240,33 +357,54 @@
                     {/* Navbar */}
                     <nav className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800">
                         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-                            <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                            <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent truncate max-w-[150px] md:max-w-none">
                                 {data.profile.name}
                             </span>
                             
-                            {isAuthenticated && (
-                                <div className="flex gap-2">
-                                    {isEditing ? (
-                                        <button 
-                                            onClick={handleSave}
-                                            disabled={isSaving}
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isSaving ? 'bg-slate-700 cursor-wait' : 'bg-green-600 hover:bg-green-700 text-white'}`}
-                                        >
-                                            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Cloud size={16} />}
-                                            {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
-                                        </button>
-                                    ) : (
-                                        <button 
-                                            onClick={() => setIsEditing(true)}
-                                            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
-                                        >
-                                            <Edit size={16} /> Edit Mode
-                                        </button>
-                                    )}
-                                </div>
-                            )}
+                            <div className="flex items-center gap-3">
+                                <button 
+                                    onClick={toggleLang}
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all text-sm font-medium text-slate-300"
+                                >
+                                    {lang === 'id' ? '🇮🇩 ID' : '🇬🇧 EN'}
+                                </button>
+
+                                {isAuthenticated && (
+                                    <div className="flex gap-2">
+                                        {isEditing ? (
+                                            <button 
+                                                onClick={handleSave}
+                                                disabled={isSaving}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isSaving ? 'bg-slate-700 cursor-wait' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                                            >
+                                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Cloud size={16} />}
+                                                {isSaving ? t.saving : t.save}
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={() => setIsEditing(true)}
+                                                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+                                            >
+                                                <Edit size={16} /> {t.editMode}
+                                            </button>
+                                        )}
+                                        {!isEditing && (
+                                            <button onClick={() => setIsEditing(true)} className="md:hidden p-2 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
+                                                <Edit size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </nav>
+
+                    {/* ALERT MODE EDIT */}
+                    {isEditing && (
+                        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 bg-yellow-500/10 border border-yellow-500/50 text-yellow-500 px-4 py-2 rounded-full text-xs font-bold backdrop-blur flex items-center gap-2 animate-bounce">
+                            <AlertCircle size={14} /> {t.editingInfo}
+                        </div>
+                    )}
 
                     {/* Hero Section */}
                     <header className="pt-32 pb-16 px-4">
@@ -280,17 +418,28 @@
                                 />
                                 {isEditing && (
                                     <input type="text" name="avatar" value={data.profile.avatar} onChange={handleProfileChange} 
-                                        className="absolute -bottom-4 left-0 w-full text-[10px] bg-slate-800 border border-slate-600 rounded p-1 text-center" placeholder="URL Foto"
+                                        className="absolute -bottom-4 left-0 w-full text-[10px] bg-slate-800 border border-slate-600 rounded p-1 text-center" placeholder={t.ph_imgUrl}
                                     />
                                 )}
                             </div>
                             
-                            <div className="text-center md:text-left flex-1 space-y-4">
+                            <div className="text-center md:text-left flex-1 space-y-4 w-full">
                                 {isEditing ? (
                                     <div className="space-y-3">
-                                        <input type="text" name="name" value={data.profile.name} onChange={handleProfileChange} className="w-full text-4xl font-bold bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Nama Lengkap"/>
-                                        <input type="text" name="title" value={data.profile.title} onChange={handleProfileChange} className="w-full text-xl text-cyan-400 bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Judul Pekerjaan"/>
-                                        <textarea name="bio" value={data.profile.bio} onChange={handleProfileChange} className="w-full bg-slate-900/50 border border-slate-700 rounded p-2 h-24 outline-none focus:border-cyan-500" placeholder="Biografi singkat..."/>
+                                        <input type="text" name="name" value={data.profile.name} onChange={handleProfileChange} className="w-full text-4xl font-bold bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder={t.ph_name}/>
+                                        
+                                        {/* Dynamic Title Input */}
+                                        <div className="relative">
+                                            <input type="text" name="title" value={getContent(data.profile, 'title')} onChange={handleProfileChange} className="w-full text-xl text-cyan-400 bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none pr-8" placeholder={t.ph_title}/>
+                                            <span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span>
+                                        </div>
+
+                                        {/* Dynamic Bio Input */}
+                                        <div className="relative">
+                                            <textarea name="bio" value={getContent(data.profile, 'bio')} onChange={handleProfileChange} className="w-full bg-slate-900/50 border border-slate-700 rounded p-2 h-24 outline-none focus:border-cyan-500" placeholder={t.ph_bio}/>
+                                            <span className="absolute right-2 top-2 text-xs opacity-50 bg-slate-800 px-1 rounded">{lang.toUpperCase()}</span>
+                                        </div>
+
                                         <div className="grid grid-cols-2 gap-2">
                                             <input type="text" name="email" value={data.profile.email} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm" placeholder="Email"/>
                                             <input type="text" name="phone" value={data.profile.phone} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm" placeholder="Telepon"/>
@@ -301,9 +450,12 @@
                                     <>
                                         <div>
                                             <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{data.profile.name}</h1>
-                                            <p className="text-xl text-cyan-400 font-medium">{data.profile.title}</p>
+                                            {/* Dynamic Title Display */}
+                                            <p className="text-xl text-cyan-400 font-medium">{getContent(data.profile, 'title')}</p>
                                         </div>
-                                        <p className="text-slate-400 leading-relaxed max-w-2xl">{data.profile.bio}</p>
+                                        {/* Dynamic Bio Display */}
+                                        <p className="text-slate-400 leading-relaxed max-w-2xl">{getContent(data.profile, 'bio')}</p>
+                                        
                                         <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-slate-300 pt-2">
                                             {data.profile.email && <a href={`mailto:${data.profile.email}`} className="flex items-center gap-2 hover:text-white"><Mail size={16} /> {data.profile.email}</a>}
                                             {data.profile.phone && <a href={`tel:${data.profile.phone}`} className="flex items-center gap-2 hover:text-white"><Phone size={16} /> {data.profile.phone}</a>}
@@ -317,11 +469,11 @@
 
                     <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-12 mt-8">
                         
-                        {/* LEFT COLUMN: Skills */}
+                        {/* LEFT COLUMN: Skills (Universal) */}
                         <aside className="space-y-12 lg:col-span-1">
                             <section className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
                                 <h3 className="flex items-center gap-2 text-lg font-bold text-white mb-4">
-                                    <Cpu className="text-cyan-500" size={20} /> Keterampilan
+                                    <Cpu className="text-cyan-500" size={20} /> {t.skills}
                                 </h3>
                                 <div className="flex flex-wrap gap-2">
                                     {data.skills.map((skill, index) => (
@@ -338,7 +490,7 @@
                                             value={newSkillInput} 
                                             onChange={(e) => setNewSkillInput(e.target.value)} 
                                             className="flex-1 bg-slate-950 border border-slate-700 rounded px-3 py-1 text-sm outline-none focus:border-cyan-500"
-                                            placeholder="Tambah skill..."
+                                            placeholder={t.addSkill}
                                             onKeyPress={(e) => e.key === 'Enter' && addTag()}
                                         />
                                         <button onClick={addTag} className="bg-cyan-600 p-1 rounded hover:bg-cyan-500"><Plus size={18}/></button>
@@ -354,9 +506,9 @@
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="flex items-center gap-3 text-2xl font-bold text-white">
                                         <div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><Briefcase size={24}/></div>
-                                        Pengalaman Kerja
+                                        {t.experience}
                                     </h3>
-                                    {isEditing && <button onClick={() => addItem("experience", { role: "Peran Baru", company: "Perusahaan", period: "Tahun", description: "Deskripsi..." })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
+                                    {isEditing && <button onClick={() => addItem("experience", { role: "Role", company: "Company", period: "2023", description: "" })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
                                 </div>
                                 <div className="space-y-8">
                                     {data.experience.map((exp) => (
@@ -364,23 +516,29 @@
                                             {isEditing && <button onClick={() => deleteItem("experience", exp.id)} className="absolute top-4 right-4 text-slate-600 hover:text-red-500"><Trash2 size={18}/></button>}
                                             {isEditing ? (
                                                 <div className="space-y-3">
-                                                    <input value={exp.role} onChange={(e) => updateItem("experience", exp.id, 'role', e.target.value)} className="w-full font-bold text-lg bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder="Jabatan"/>
-                                                    <div className="flex gap-2">
-                                                        <input value={exp.company} onChange={(e) => updateItem("experience", exp.id, 'company', e.target.value)} className="flex-1 text-cyan-400 bg-transparent border-b border-slate-700 outline-none" placeholder="Perusahaan"/>
-                                                        <input value={exp.period} onChange={(e) => updateItem("experience", exp.id, 'period', e.target.value)} className="w-1/3 text-slate-500 bg-transparent border-b border-slate-700 outline-none text-right" placeholder="Tahun"/>
+                                                    <div className="relative">
+                                                        <input value={getContent(exp, 'role')} onChange={(e) => updateItem("experience", exp.id, 'role', e.target.value)} className="w-full font-bold text-lg bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none pr-8" placeholder={t.ph_role}/>
+                                                        <span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span>
                                                     </div>
-                                                    <textarea value={exp.description} onChange={(e) => updateItem("experience", exp.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700 h-24" placeholder="Deskripsi..."/>
+                                                    <div className="flex gap-2">
+                                                        <input value={getContent(exp, 'company')} onChange={(e) => updateItem("experience", exp.id, 'company', e.target.value)} className="flex-1 text-cyan-400 bg-transparent border-b border-slate-700 outline-none" placeholder={t.ph_company}/>
+                                                        <input value={exp.period} onChange={(e) => updateItem("experience", exp.id, 'period', e.target.value)} className="w-1/3 text-slate-500 bg-transparent border-b border-slate-700 outline-none text-right" placeholder={t.ph_year}/>
+                                                    </div>
+                                                    <div className="relative">
+                                                        <textarea value={getContent(exp, 'description')} onChange={(e) => updateItem("experience", exp.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700 h-24" placeholder={t.ph_desc}/>
+                                                        <span className="absolute right-2 top-2 text-xs opacity-50 bg-slate-800 px-1 rounded">{lang.toUpperCase()}</span>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <>
                                                     <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
                                                         <div>
-                                                            <h4 className="text-xl font-bold text-slate-100">{exp.role}</h4>
-                                                            <p className="text-cyan-400 font-medium">{exp.company}</p>
+                                                            <h4 className="text-xl font-bold text-slate-100">{getContent(exp, 'role')}</h4>
+                                                            <p className="text-cyan-400 font-medium">{getContent(exp, 'company')}</p>
                                                         </div>
                                                         <span className="text-sm font-mono text-slate-500 mt-1 md:mt-0 bg-slate-800 px-2 py-1 rounded">{exp.period}</span>
                                                     </div>
-                                                    <p className="text-slate-400 leading-relaxed text-sm">{exp.description}</p>
+                                                    <p className="text-slate-400 leading-relaxed text-sm whitespace-pre-line">{getContent(exp, 'description')}</p>
                                                 </>
                                             )}
                                         </div>
@@ -393,9 +551,9 @@
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="flex items-center gap-3 text-2xl font-bold text-white">
                                         <div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><GraduationCap size={24}/></div>
-                                        Riwayat Pendidikan
+                                        {t.education}
                                     </h3>
-                                    {isEditing && <button onClick={() => addItem("education", { degree: "Gelar", school: "Sekolah", period: "Tahun", description: "Deskripsi..." })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
+                                    {isEditing && <button onClick={() => addItem("education", { degree: "Degree", school: "School", period: "2020", description: "" })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
                                 </div>
                                 <div className="space-y-6">
                                     {data.education.map((edu) => (
@@ -404,19 +562,25 @@
                                             {isEditing && <button onClick={() => deleteItem("education", edu.id)} className="absolute top-0 right-0 text-slate-600 hover:text-red-500"><Trash2 size={16}/></button>}
                                             {isEditing ? (
                                                 <div className="space-y-2">
-                                                    <input value={edu.degree} onChange={(e) => updateItem("education", edu.id, 'degree', e.target.value)} className="w-full font-bold bg-transparent border-b border-slate-700" placeholder="Gelar"/>
-                                                    <input value={edu.school} onChange={(e) => updateItem("education", edu.id, 'school', e.target.value)} className="w-full text-cyan-400 bg-transparent border-b border-slate-700" placeholder="Kampus"/>
-                                                    <input value={edu.period} onChange={(e) => updateItem("education", edu.id, 'period', e.target.value)} className="w-full text-sm text-slate-500 bg-transparent border-b border-slate-700" placeholder="Tahun"/>
-                                                    <textarea value={edu.description} onChange={(e) => updateItem("education", edu.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700" placeholder="Deskripsi..."/>
+                                                    <div className="relative">
+                                                        <input value={getContent(edu, 'degree')} onChange={(e) => updateItem("education", edu.id, 'degree', e.target.value)} className="w-full font-bold bg-transparent border-b border-slate-700 pr-8" placeholder={t.ph_degree}/>
+                                                        <span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span>
+                                                    </div>
+                                                    <input value={getContent(edu, 'school')} onChange={(e) => updateItem("education", edu.id, 'school', e.target.value)} className="w-full text-cyan-400 bg-transparent border-b border-slate-700" placeholder={t.ph_school}/>
+                                                    <input value={edu.period} onChange={(e) => updateItem("education", edu.id, 'period', e.target.value)} className="w-full text-sm text-slate-500 bg-transparent border-b border-slate-700" placeholder={t.ph_year}/>
+                                                    <div className="relative">
+                                                        <textarea value={getContent(edu, 'description')} onChange={(e) => updateItem("education", edu.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700" placeholder={t.ph_desc}/>
+                                                        <span className="absolute right-2 top-2 text-xs opacity-50 bg-slate-800 px-1 rounded">{lang.toUpperCase()}</span>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <h4 className="text-lg font-bold text-slate-100">{edu.degree}</h4>
+                                                    <h4 className="text-lg font-bold text-slate-100">{getContent(edu, 'degree')}</h4>
                                                     <div className="flex justify-between items-center text-sm text-slate-400 mb-2">
-                                                        <span>{edu.school}</span>
+                                                        <span>{getContent(edu, 'school')}</span>
                                                         <span className="italic">{edu.period}</span>
                                                     </div>
-                                                    <p className="text-slate-500 text-sm">{edu.description}</p>
+                                                    <p className="text-slate-500 text-sm whitespace-pre-line">{getContent(edu, 'description')}</p>
                                                 </>
                                             )}
                                         </div>
@@ -426,13 +590,13 @@
                         </main>
                     </div>
 
-                    {/* FULL WIDTH PROJECTS SECTION */}
+                    {/* PROJECTS SECTION */}
                     <section id="projects" className="max-w-6xl mx-auto px-4 mt-20 mb-20">
                         {!activeCategory ? (
                             // --- CATEGORY SELECTOR VIEW ---
                             <div className="space-y-8 animate-fade-in">
                                 <h3 className="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                                    Project
+                                    {t.projects}
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     {categories.map((cat) => (
@@ -473,12 +637,12 @@
                                                 {currentCategoryData?.icon && <currentCategoryData.icon size={24} className="text-cyan-500"/>}
                                                 {currentCategoryData?.label}
                                             </h3>
-                                            <p className="text-sm text-slate-500">Menampilkan daftar proyek {currentCategoryData?.label}</p>
+                                            <p className="text-sm text-slate-500">{t.showProjectList} {currentCategoryData?.label}</p>
                                         </div>
                                     </div>
                                     {isEditing && (
                                         <button onClick={addProject} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg font-medium transition shadow-lg shadow-cyan-500/20">
-                                            <Plus size={18} /> Tambah Proyek
+                                            <Plus size={18} /> {t.addProject}
                                         </button>
                                     )}
                                 </div>
@@ -487,9 +651,7 @@
                                     {data.projects
                                         .filter(p => p.category === activeCategory)
                                         .map((project) => {
-                                            // Extract video info for this specific project
                                             const { type: videoType, id: videoId } = getVideoInfo(project.videoUrl);
-                                            
                                             return (
                                                 <div key={project.id} className="bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800 hover:border-cyan-500/50 transition-all group flex flex-col">
                                                     <div className="relative aspect-video bg-black">
@@ -517,26 +679,37 @@
                                                         {isEditing ? (
                                                             <div className="space-y-3 flex-1">
                                                                 <div className="flex gap-2 text-xs">
-                                                                    <button onClick={() => updateItem("projects", project.id, 'type', 'image')} className={`flex-1 py-1 rounded ${project.type === 'image' ? 'bg-cyan-600' : 'bg-slate-700'}`}>Foto</button>
-                                                                    <button onClick={() => updateItem("projects", project.id, 'type', 'video')} className={`flex-1 py-1 rounded ${project.type === 'video' ? 'bg-red-600' : 'bg-slate-700'}`}>Video</button>
+                                                                    <button onClick={() => updateItem("projects", project.id, 'type', 'image')} className={`flex-1 py-1 rounded ${project.type === 'image' ? 'bg-cyan-600' : 'bg-slate-700'}`}>{t.photo}</button>
+                                                                    <button onClick={() => updateItem("projects", project.id, 'type', 'video')} className={`flex-1 py-1 rounded ${project.type === 'video' ? 'bg-red-600' : 'bg-slate-700'}`}>{t.video}</button>
                                                                 </div>
                                                                 {project.type === 'image' ? (
-                                                                    <input value={project.image} onChange={(e) => updateItem("projects", project.id, 'image', e.target.value)} placeholder="URL Gambar" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                                    <input value={project.image} onChange={(e) => updateItem("projects", project.id, 'image', e.target.value)} placeholder={t.ph_imgUrl} className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
                                                                 ) : (
-                                                                    <input value={project.videoUrl} onChange={(e) => updateItem("projects", project.id, 'videoUrl', e.target.value)} placeholder="URL YouTube / Shorts / TikTok" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                                    <input value={project.videoUrl} onChange={(e) => updateItem("projects", project.id, 'videoUrl', e.target.value)} placeholder={t.ph_vidUrl} className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
                                                                 )}
-                                                                <input value={project.title} onChange={(e) => updateItem("projects", project.id, 'title', e.target.value)} placeholder="Judul" className="w-full font-bold bg-transparent border-b border-slate-700"/>
-                                                                <textarea value={project.description} onChange={(e) => updateItem("projects", project.id, 'description', e.target.value)} placeholder="Deskripsi" className="w-full text-xs bg-transparent border border-slate-700 p-1 rounded h-16"/>
-                                                                <input value={project.link} onChange={(e) => updateItem("projects", project.id, 'link', e.target.value)} placeholder="Link Proyek" className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                                
+                                                                {/* Dynamic Project Title */}
+                                                                <div className="relative">
+                                                                    <input value={getContent(project, 'title')} onChange={(e) => updateItem("projects", project.id, 'title', e.target.value)} placeholder={t.ph_projTitle} className="w-full font-bold bg-transparent border-b border-slate-700 pr-8"/>
+                                                                    <span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span>
+                                                                </div>
+
+                                                                {/* Dynamic Project Description */}
+                                                                <div className="relative">
+                                                                    <textarea value={getContent(project, 'description')} onChange={(e) => updateItem("projects", project.id, 'description', e.target.value)} placeholder={t.ph_desc} className="w-full text-xs bg-transparent border border-slate-700 p-1 rounded h-16"/>
+                                                                    <span className="absolute right-0 top-1 text-xs opacity-50 bg-slate-800 px-1">{lang.toUpperCase()}</span>
+                                                                </div>
+
+                                                                <input value={project.link} onChange={(e) => updateItem("projects", project.id, 'link', e.target.value)} placeholder={t.ph_link} className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
                                                             </div>
                                                         ) : (
                                                             <>
                                                                 <div className="flex justify-between items-start mb-2">
-                                                                    <h4 className="font-bold text-lg group-hover:text-cyan-400 transition-colors">{project.title}</h4>
+                                                                    <h4 className="font-bold text-lg group-hover:text-cyan-400 transition-colors">{getContent(project, 'title')}</h4>
                                                                     {project.type === 'video' ? <Youtube size={18} className="text-red-500"/> : <ImageIcon size={18} className="text-cyan-400"/>}
                                                                 </div>
-                                                                <p className="text-slate-400 text-sm mb-4 flex-1 line-clamp-3">{project.description}</p>
-                                                                <a href={project.link} target="_blank" className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-white mt-auto">Lihat <ExternalLink size={14}/></a>
+                                                                <p className="text-slate-400 text-sm mb-4 flex-1 line-clamp-3">{getContent(project, 'description')}</p>
+                                                                <a href={project.link} target="_blank" className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-white mt-auto">{t.view} <ExternalLink size={14}/></a>
                                                             </>
                                                         )}
                                                     </div>
@@ -545,8 +718,8 @@
                                         })}
                                     {data.projects.filter(p => p.category === activeCategory).length === 0 && (
                                         <div className="col-span-full text-center py-20 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
-                                            <p>Belum ada proyek di kategori ini.</p>
-                                            {isEditing && <p className="text-sm">Klik "Tambah Proyek" di atas.</p>}
+                                            <p>{t.noProjects}</p>
+                                            {isEditing && <p className="text-sm">{t.clickAdd}</p>}
                                         </div>
                                     )}
                                 </div>
@@ -560,10 +733,10 @@
                         <button 
                             onClick={handleAuthAction}
                             className={`flex items-center gap-2 px-3 py-1 rounded transition-colors ${isAuthenticated ? 'text-green-500 hover:bg-green-500/10' : 'text-slate-600 hover:text-slate-400'}`}
-                            title={isAuthenticated ? "Logout Admin" : "Login Admin"}
+                            title={isAuthenticated ? t.logout : "Login Admin"}
                         >
                             {isAuthenticated ? <LogOut size={14} /> : <Lock size={14} />}
-                            {isAuthenticated ? "Logout" : "Admin"}
+                            {isAuthenticated ? t.logout : t.admin}
                         </button>
                     </footer>
                 </div>
@@ -575,5 +748,3 @@
     </script>
 </body>
 </html>
-
-
