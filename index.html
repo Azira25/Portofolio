@@ -28,6 +28,9 @@
         body { background-color: #020617; }
         .loader { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #38bdf8; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Hide Scrollbar for filter */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body>
@@ -36,14 +39,14 @@
     <script src="./auth.js"></script>
 
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect } from 'react';
+        import React, { useState, useEffect, useMemo } from 'react';
         import { createRoot } from 'react-dom/client';
         import { initializeApp } from 'firebase/app';
         import { getFirestore, doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
         import { 
             Edit, Save, Plus, Trash2, ExternalLink, Youtube, Image as ImageIcon, 
             X, Check, Mail, Phone, Briefcase, GraduationCap, Cpu, 
-            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Loader2, Cloud, Globe, AlertCircle
+            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Loader2, Cloud, Globe, AlertCircle, Tag
         } from 'lucide-react';
 
         // =================================================================
@@ -63,7 +66,7 @@
         const db = getFirestore(app);
         const DOC_ID = "main_portfolio";
 
-        // --- KAMUS BAHASA (UI STATIS) ---
+        // --- KAMUS BAHASA ---
         const TRANSLATIONS = {
             id: {
                 editMode: "Mode Edit",
@@ -84,6 +87,8 @@
                 photo: "Foto",
                 back: "Kembali",
                 editingInfo: "Anda sedang mengedit konten Bahasa Indonesia.",
+                all: "Semua",
+                categoryLabel: "Sub-Kategori (Misal: Logo, Poster)",
                 // Categories
                 videography: "Videografi",
                 videography_desc: "Video Youtube, Shorts, dan TikTok.",
@@ -105,6 +110,7 @@
                 ph_vidUrl: "URL YouTube / Shorts / TikTok",
                 ph_projTitle: "Judul Proyek",
                 ph_link: "Link Proyek",
+                ph_subCat: "Kategori (cth: Logo)",
                 // Auth
                 logout: "Keluar",
                 admin: "Admin",
@@ -130,6 +136,8 @@
                 photo: "Photo",
                 back: "Back",
                 editingInfo: "You are editing English content.",
+                all: "All",
+                categoryLabel: "Sub-Category (Ex: Logo, Poster)",
                 // Categories
                 videography: "Videography",
                 videography_desc: "Youtube Videos, Shorts, and TikTok.",
@@ -151,6 +159,7 @@
                 ph_vidUrl: "YouTube / Shorts / TikTok URL",
                 ph_projTitle: "Project Title (English)",
                 ph_link: "Project Link",
+                ph_subCat: "Category (ex: Logo)",
                 // Auth
                 logout: "Logout",
                 admin: "Admin",
@@ -190,10 +199,13 @@
             const [isLoading, setIsLoading] = useState(true);
             const [isSaving, setIsSaving] = useState(false);
             const [activeCategory, setActiveCategory] = useState(null); 
+            // New State for Sub-Category Filter
+            const [activeFilter, setActiveFilter] = useState('All');
+
             const [data, setData] = useState(defaultData);
             const [newSkillInput, setNewSkillInput] = useState("");
-
-            // --- LANGUAGE STATE ---
+            
+            // Language
             const [lang, setLang] = useState(() => localStorage.getItem('portfolio_lang') || 'id');
             const t = TRANSLATIONS[lang];
 
@@ -203,20 +215,16 @@
                 localStorage.setItem('portfolio_lang', newLang);
             };
 
-            // --- HELPER UNTUK KONTEN DINAMIS ---
-            // Mengambil konten berdasarkan bahasa aktif
-            // Jika bahasa Inggris kosong, gunakan bahasa Indonesia (fallback)
             const getContent = (obj, key) => {
                 if (!obj) return "";
                 if (lang === 'en') {
-                    // Cek apakah ada field _en (contoh: bio_en)
                     const valEn = obj[key + '_en'];
                     return valEn ? valEn : (obj[key] || ""); 
                 }
                 return obj[key] || "";
             };
 
-            // --- REALTIME LISTENER ---
+            // Listener
             useEffect(() => {
                 const docRef = doc(db, "portfolio", DOC_ID);
                 const unsubscribe = onSnapshot(docRef, (docSnap) => {
@@ -235,17 +243,21 @@
                 if (window.isLoggedIn && window.isLoggedIn()) {
                     setIsAuthenticated(true);
                 }
-
                 return () => unsubscribe();
             }, []);
 
+            // Reset filter when changing main category
+            useEffect(() => {
+                setActiveFilter('All');
+            }, [activeCategory]);
+
+            // Save
             const handleSave = async () => {
                 setIsSaving(true);
                 try {
                     await setDoc(doc(db, "portfolio", DOC_ID), data);
                     setIsEditing(false);
                 } catch (error) {
-                    console.error("Error saving document: ", error);
                     alert("Gagal menyimpan: " + error.message);
                 } finally {
                     setIsSaving(false);
@@ -264,25 +276,18 @@
                 }
             };
 
-            // --- DATA HANDLERS YANG SUDAH SUPPORT MULTI-BAHASA ---
-            
-            // 1. Profile Handler
+            // Handlers
             const handleProfileChange = (e) => {
                 const baseField = e.target.name; 
-                // Jika lang='en', kita update field dengan suffix _en (kecuali field universal seperti email/phone)
                 const isTranslatable = ['title', 'bio'].includes(baseField);
                 const targetField = (lang === 'en' && isTranslatable) ? baseField + '_en' : baseField;
-                
                 setData({...data, profile: { ...data.profile, [targetField]: e.target.value }});
             };
             
-            // 2. List Item Handler (Experience, Education, Projects)
             const updateItem = (listName, id, baseField, value) => {
-                // Tentukan field mana yang bisa ditranslate
+                // subCategory tidak perlu _en, satu untuk semua bahasa lebih rapih untuk filtering
                 const translatableFields = ['role', 'degree', 'description', 'title', 'school', 'company']; 
                 const isTranslatable = translatableFields.includes(baseField);
-                
-                // Jika sedang mode EN, simpan ke field_en
                 const targetField = (lang === 'en' && isTranslatable) ? baseField + '_en' : baseField;
 
                 setData({
@@ -293,18 +298,12 @@
 
             const deleteItem = (listName, id) => {
                 if (confirm(t.confirmDelete)) {
-                    setData({
-                        ...data,
-                        [listName]: data[listName].filter(item => item.id !== id)
-                    });
+                    setData({...data, [listName]: data[listName].filter(item => item.id !== id)});
                 }
             };
 
             const addItem = (listName, template) => {
-                setData({
-                    ...data,
-                    [listName]: [...data[listName], { ...template, id: Date.now() }]
-                });
+                setData({...data, [listName]: [...data[listName], { ...template, id: Date.now() }]});
             };
             
             const addProject = () => {
@@ -313,14 +312,17 @@
                 const defaultImage = activeCategory === 'videography' ? '' : 'https://via.placeholder.com/600x400';
                 
                 const newProj = { 
-                    id: Date.now(), category: activeCategory, title: "Proyek Baru", 
-                    description: "Deskripsi...", image: defaultImage, videoUrl: "", type: defaultType, link: "#" 
+                    id: Date.now(), 
+                    category: activeCategory, 
+                    subCategory: "", // New Field for Custom Category
+                    title: "Proyek Baru", 
+                    description: "Deskripsi...", 
+                    image: defaultImage, 
+                    videoUrl: "", 
+                    type: defaultType, 
+                    link: "#" 
                 };
-                
-                setData({
-                    ...data,
-                    projects: [...data.projects, newProj]
-                });
+                setData({...data, projects: [...data.projects, newProj]});
             };
 
             const addTag = () => {
@@ -334,7 +336,23 @@
                 setData({ ...data, skills: data.skills.filter((_, i) => i !== index) });
             };
 
-            // Kategori UI
+            // --- COMPUTED PROPERTIES FOR FILTERING ---
+            // 1. Get projects for current main category
+            const currentProjects = data.projects.filter(p => p.category === activeCategory);
+            
+            // 2. Extract unique sub-categories from these projects
+            const uniqueSubCategories = useMemo(() => {
+                const subCats = currentProjects
+                    .map(p => p.subCategory)
+                    .filter(sub => sub && sub.trim() !== ""); // Filter empty
+                return [...new Set(subCats)].sort(); // Unique and sorted
+            }, [currentProjects]);
+
+            // 3. Filter projects based on active badge
+            const filteredProjects = activeFilter === 'All' 
+                ? currentProjects 
+                : currentProjects.filter(p => p.subCategory === activeFilter);
+
             const categories = [
                 { id: 'videography', label: t.videography, icon: Video, color: 'from-red-500 to-pink-600', desc: t.videography_desc },
                 { id: 'design', label: t.design, icon: Palette, color: 'from-purple-500 to-indigo-600', desc: t.design_desc },
@@ -343,13 +361,7 @@
 
             const currentCategoryData = categories.find(c => c.id === activeCategory);
 
-            if (isLoading) {
-                return (
-                    <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-white gap-4">
-                        <div className="loader"></div>
-                    </div>
-                );
-            }
+            if (isLoading) return <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-white gap-4"><div className="loader"></div></div>;
 
             return (
                 <div className="min-h-screen text-slate-100 font-sans selection:bg-cyan-500 selection:text-white pb-20">
@@ -360,39 +372,22 @@
                             <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent truncate max-w-[150px] md:max-w-none">
                                 {data.profile.name}
                             </span>
-                            
                             <div className="flex items-center gap-3">
-                                <button 
-                                    onClick={toggleLang}
-                                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all text-sm font-medium text-slate-300"
-                                >
+                                <button onClick={toggleLang} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all text-sm font-medium text-slate-300">
                                     {lang === 'id' ? '🇮🇩 ID' : '🇬🇧 EN'}
                                 </button>
-
                                 {isAuthenticated && (
                                     <div className="flex gap-2">
                                         {isEditing ? (
-                                            <button 
-                                                onClick={handleSave}
-                                                disabled={isSaving}
-                                                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isSaving ? 'bg-slate-700 cursor-wait' : 'bg-green-600 hover:bg-green-700 text-white'}`}
-                                            >
-                                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Cloud size={16} />}
-                                                {isSaving ? t.saving : t.save}
+                                            <button onClick={handleSave} disabled={isSaving} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isSaving ? 'bg-slate-700 cursor-wait' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+                                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Cloud size={16} />} {isSaving ? t.saving : t.save}
                                             </button>
                                         ) : (
-                                            <button 
-                                                onClick={() => setIsEditing(true)}
-                                                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
-                                            >
+                                            <button onClick={() => setIsEditing(true)} className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
                                                 <Edit size={16} /> {t.editMode}
                                             </button>
                                         )}
-                                        {!isEditing && (
-                                            <button onClick={() => setIsEditing(true)} className="md:hidden p-2 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
-                                                <Edit size={16} />
-                                            </button>
-                                        )}
+                                        {!isEditing && <button onClick={() => setIsEditing(true)} className="md:hidden p-2 rounded-full bg-slate-800 border border-slate-700 text-slate-300"><Edit size={16} /></button>}
                                     </div>
                                 )}
                             </div>
@@ -410,36 +405,21 @@
                     <header className="pt-32 pb-16 px-4">
                         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-8 md:gap-12 animate-fade-in">
                             <div className="relative shrink-0">
-                                <img 
-                                    src={data.profile.avatar} 
-                                    alt="Profile" 
-                                    className="w-32 h-32 md:w-48 md:h-48 rounded-full object-cover border-4 border-slate-800 shadow-2xl ring-2 ring-cyan-500/50"
-                                    onError={(e) => {e.target.src = 'https://via.placeholder.com/150'}}
-                                />
-                                {isEditing && (
-                                    <input type="text" name="avatar" value={data.profile.avatar} onChange={handleProfileChange} 
-                                        className="absolute -bottom-4 left-0 w-full text-[10px] bg-slate-800 border border-slate-600 rounded p-1 text-center" placeholder={t.ph_imgUrl}
-                                    />
-                                )}
+                                <img src={data.profile.avatar} alt="Profile" className="w-32 h-32 md:w-48 md:h-48 rounded-full object-cover border-4 border-slate-800 shadow-2xl ring-2 ring-cyan-500/50" onError={(e) => {e.target.src = 'https://via.placeholder.com/150'}} />
+                                {isEditing && <input type="text" name="avatar" value={data.profile.avatar} onChange={handleProfileChange} className="absolute -bottom-4 left-0 w-full text-[10px] bg-slate-800 border border-slate-600 rounded p-1 text-center" placeholder={t.ph_imgUrl} />}
                             </div>
-                            
                             <div className="text-center md:text-left flex-1 space-y-4 w-full">
                                 {isEditing ? (
                                     <div className="space-y-3">
                                         <input type="text" name="name" value={data.profile.name} onChange={handleProfileChange} className="w-full text-4xl font-bold bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none" placeholder={t.ph_name}/>
-                                        
-                                        {/* Dynamic Title Input */}
                                         <div className="relative">
                                             <input type="text" name="title" value={getContent(data.profile, 'title')} onChange={handleProfileChange} className="w-full text-xl text-cyan-400 bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none pr-8" placeholder={t.ph_title}/>
                                             <span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span>
                                         </div>
-
-                                        {/* Dynamic Bio Input */}
                                         <div className="relative">
                                             <textarea name="bio" value={getContent(data.profile, 'bio')} onChange={handleProfileChange} className="w-full bg-slate-900/50 border border-slate-700 rounded p-2 h-24 outline-none focus:border-cyan-500" placeholder={t.ph_bio}/>
                                             <span className="absolute right-2 top-2 text-xs opacity-50 bg-slate-800 px-1 rounded">{lang.toUpperCase()}</span>
                                         </div>
-
                                         <div className="grid grid-cols-2 gap-2">
                                             <input type="text" name="email" value={data.profile.email} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm" placeholder="Email"/>
                                             <input type="text" name="phone" value={data.profile.phone} onChange={handleProfileChange} className="bg-slate-800 p-2 rounded text-sm" placeholder="Telepon"/>
@@ -450,12 +430,9 @@
                                     <>
                                         <div>
                                             <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{data.profile.name}</h1>
-                                            {/* Dynamic Title Display */}
                                             <p className="text-xl text-cyan-400 font-medium">{getContent(data.profile, 'title')}</p>
                                         </div>
-                                        {/* Dynamic Bio Display */}
                                         <p className="text-slate-400 leading-relaxed max-w-2xl">{getContent(data.profile, 'bio')}</p>
-                                        
                                         <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-slate-300 pt-2">
                                             {data.profile.email && <a href={`mailto:${data.profile.email}`} className="flex items-center gap-2 hover:text-white"><Mail size={16} /> {data.profile.email}</a>}
                                             {data.profile.phone && <a href={`tel:${data.profile.phone}`} className="flex items-center gap-2 hover:text-white"><Phone size={16} /> {data.profile.phone}</a>}
@@ -468,13 +445,10 @@
                     </header>
 
                     <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-12 mt-8">
-                        
-                        {/* LEFT COLUMN: Skills (Universal) */}
+                        {/* SKILLS */}
                         <aside className="space-y-12 lg:col-span-1">
                             <section className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
-                                <h3 className="flex items-center gap-2 text-lg font-bold text-white mb-4">
-                                    <Cpu className="text-cyan-500" size={20} /> {t.skills}
-                                </h3>
+                                <h3 className="flex items-center gap-2 text-lg font-bold text-white mb-4"><Cpu className="text-cyan-500" size={20} /> {t.skills}</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {data.skills.map((skill, index) => (
                                         <span key={index} className="px-3 py-1 bg-slate-800 text-cyan-300 text-sm rounded-full flex items-center gap-2 border border-slate-700">
@@ -485,29 +459,19 @@
                                 </div>
                                 {isEditing && (
                                     <div className="mt-3 flex gap-2">
-                                        <input 
-                                            type="text" 
-                                            value={newSkillInput} 
-                                            onChange={(e) => setNewSkillInput(e.target.value)} 
-                                            className="flex-1 bg-slate-950 border border-slate-700 rounded px-3 py-1 text-sm outline-none focus:border-cyan-500"
-                                            placeholder={t.addSkill}
-                                            onKeyPress={(e) => e.key === 'Enter' && addTag()}
-                                        />
+                                        <input type="text" value={newSkillInput} onChange={(e) => setNewSkillInput(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded px-3 py-1 text-sm outline-none focus:border-cyan-500" placeholder={t.addSkill} onKeyPress={(e) => e.key === 'Enter' && addTag()} />
                                         <button onClick={addTag} className="bg-cyan-600 p-1 rounded hover:bg-cyan-500"><Plus size={18}/></button>
                                     </div>
                                 )}
                             </section>
                         </aside>
 
-                        {/* RIGHT COLUMN: Experience & Education */}
+                        {/* EXPERIENCE & EDUCATION */}
                         <main className="lg:col-span-2 space-y-12">
-                            {/* EXPERIENCE */}
+                            {/* Experience */}
                             <section>
                                 <div className="flex justify-between items-center mb-6">
-                                    <h3 className="flex items-center gap-3 text-2xl font-bold text-white">
-                                        <div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><Briefcase size={24}/></div>
-                                        {t.experience}
-                                    </h3>
+                                    <h3 className="flex items-center gap-3 text-2xl font-bold text-white"><div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><Briefcase size={24}/></div> {t.experience}</h3>
                                     {isEditing && <button onClick={() => addItem("experience", { role: "Role", company: "Company", period: "2023", description: "" })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
                                 </div>
                                 <div className="space-y-8">
@@ -516,26 +480,14 @@
                                             {isEditing && <button onClick={() => deleteItem("experience", exp.id)} className="absolute top-4 right-4 text-slate-600 hover:text-red-500"><Trash2 size={18}/></button>}
                                             {isEditing ? (
                                                 <div className="space-y-3">
-                                                    <div className="relative">
-                                                        <input value={getContent(exp, 'role')} onChange={(e) => updateItem("experience", exp.id, 'role', e.target.value)} className="w-full font-bold text-lg bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none pr-8" placeholder={t.ph_role}/>
-                                                        <span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span>
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <input value={getContent(exp, 'company')} onChange={(e) => updateItem("experience", exp.id, 'company', e.target.value)} className="flex-1 text-cyan-400 bg-transparent border-b border-slate-700 outline-none" placeholder={t.ph_company}/>
-                                                        <input value={exp.period} onChange={(e) => updateItem("experience", exp.id, 'period', e.target.value)} className="w-1/3 text-slate-500 bg-transparent border-b border-slate-700 outline-none text-right" placeholder={t.ph_year}/>
-                                                    </div>
-                                                    <div className="relative">
-                                                        <textarea value={getContent(exp, 'description')} onChange={(e) => updateItem("experience", exp.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700 h-24" placeholder={t.ph_desc}/>
-                                                        <span className="absolute right-2 top-2 text-xs opacity-50 bg-slate-800 px-1 rounded">{lang.toUpperCase()}</span>
-                                                    </div>
+                                                    <div className="relative"><input value={getContent(exp, 'role')} onChange={(e) => updateItem("experience", exp.id, 'role', e.target.value)} className="w-full font-bold text-lg bg-transparent border-b border-slate-700 focus:border-cyan-500 outline-none pr-8" placeholder={t.ph_role}/><span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span></div>
+                                                    <div className="flex gap-2"><input value={getContent(exp, 'company')} onChange={(e) => updateItem("experience", exp.id, 'company', e.target.value)} className="flex-1 text-cyan-400 bg-transparent border-b border-slate-700 outline-none" placeholder={t.ph_company}/><input value={exp.period} onChange={(e) => updateItem("experience", exp.id, 'period', e.target.value)} className="w-1/3 text-slate-500 bg-transparent border-b border-slate-700 outline-none text-right" placeholder={t.ph_year}/></div>
+                                                    <div className="relative"><textarea value={getContent(exp, 'description')} onChange={(e) => updateItem("experience", exp.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700 h-24" placeholder={t.ph_desc}/><span className="absolute right-2 top-2 text-xs opacity-50 bg-slate-800 px-1 rounded">{lang.toUpperCase()}</span></div>
                                                 </div>
                                             ) : (
                                                 <>
                                                     <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
-                                                        <div>
-                                                            <h4 className="text-xl font-bold text-slate-100">{getContent(exp, 'role')}</h4>
-                                                            <p className="text-cyan-400 font-medium">{getContent(exp, 'company')}</p>
-                                                        </div>
+                                                        <div><h4 className="text-xl font-bold text-slate-100">{getContent(exp, 'role')}</h4><p className="text-cyan-400 font-medium">{getContent(exp, 'company')}</p></div>
                                                         <span className="text-sm font-mono text-slate-500 mt-1 md:mt-0 bg-slate-800 px-2 py-1 rounded">{exp.period}</span>
                                                     </div>
                                                     <p className="text-slate-400 leading-relaxed text-sm whitespace-pre-line">{getContent(exp, 'description')}</p>
@@ -545,14 +497,10 @@
                                     ))}
                                 </div>
                             </section>
-
-                            {/* EDUCATION */}
+                            {/* Education */}
                             <section>
                                 <div className="flex justify-between items-center mb-6">
-                                    <h3 className="flex items-center gap-3 text-2xl font-bold text-white">
-                                        <div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><GraduationCap size={24}/></div>
-                                        {t.education}
-                                    </h3>
+                                    <h3 className="flex items-center gap-3 text-2xl font-bold text-white"><div className="p-2 bg-slate-800 rounded-lg text-cyan-500"><GraduationCap size={24}/></div> {t.education}</h3>
                                     {isEditing && <button onClick={() => addItem("education", { degree: "Degree", school: "School", period: "2020", description: "" })} className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg"><Plus size={20}/></button>}
                                 </div>
                                 <div className="space-y-6">
@@ -562,24 +510,15 @@
                                             {isEditing && <button onClick={() => deleteItem("education", edu.id)} className="absolute top-0 right-0 text-slate-600 hover:text-red-500"><Trash2 size={16}/></button>}
                                             {isEditing ? (
                                                 <div className="space-y-2">
-                                                    <div className="relative">
-                                                        <input value={getContent(edu, 'degree')} onChange={(e) => updateItem("education", edu.id, 'degree', e.target.value)} className="w-full font-bold bg-transparent border-b border-slate-700 pr-8" placeholder={t.ph_degree}/>
-                                                        <span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span>
-                                                    </div>
+                                                    <div className="relative"><input value={getContent(edu, 'degree')} onChange={(e) => updateItem("education", edu.id, 'degree', e.target.value)} className="w-full font-bold bg-transparent border-b border-slate-700 pr-8" placeholder={t.ph_degree}/><span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span></div>
                                                     <input value={getContent(edu, 'school')} onChange={(e) => updateItem("education", edu.id, 'school', e.target.value)} className="w-full text-cyan-400 bg-transparent border-b border-slate-700" placeholder={t.ph_school}/>
                                                     <input value={edu.period} onChange={(e) => updateItem("education", edu.id, 'period', e.target.value)} className="w-full text-sm text-slate-500 bg-transparent border-b border-slate-700" placeholder={t.ph_year}/>
-                                                    <div className="relative">
-                                                        <textarea value={getContent(edu, 'description')} onChange={(e) => updateItem("education", edu.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700" placeholder={t.ph_desc}/>
-                                                        <span className="absolute right-2 top-2 text-xs opacity-50 bg-slate-800 px-1 rounded">{lang.toUpperCase()}</span>
-                                                    </div>
+                                                    <div className="relative"><textarea value={getContent(edu, 'description')} onChange={(e) => updateItem("education", edu.id, 'description', e.target.value)} className="w-full bg-slate-950 p-2 rounded text-sm border border-slate-700" placeholder={t.ph_desc}/><span className="absolute right-2 top-2 text-xs opacity-50 bg-slate-800 px-1 rounded">{lang.toUpperCase()}</span></div>
                                                 </div>
                                             ) : (
                                                 <>
                                                     <h4 className="text-lg font-bold text-slate-100">{getContent(edu, 'degree')}</h4>
-                                                    <div className="flex justify-between items-center text-sm text-slate-400 mb-2">
-                                                        <span>{getContent(edu, 'school')}</span>
-                                                        <span className="italic">{edu.period}</span>
-                                                    </div>
+                                                    <div className="flex justify-between items-center text-sm text-slate-400 mb-2"><span>{getContent(edu, 'school')}</span><span className="italic">{edu.period}</span></div>
                                                     <p className="text-slate-500 text-sm whitespace-pre-line">{getContent(edu, 'description')}</p>
                                                 </>
                                             )}
@@ -593,130 +532,125 @@
                     {/* PROJECTS SECTION */}
                     <section id="projects" className="max-w-6xl mx-auto px-4 mt-20 mb-20">
                         {!activeCategory ? (
-                            // --- CATEGORY SELECTOR VIEW ---
                             <div className="space-y-8 animate-fade-in">
-                                <h3 className="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                                    {t.projects}
-                                </h3>
+                                <h3 className="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">{t.projects}</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     {categories.map((cat) => (
-                                        <button
-                                            key={cat.id}
-                                            onClick={() => setActiveCategory(cat.id)}
-                                            className="group relative h-64 rounded-2xl overflow-hidden border border-slate-800 hover:border-slate-600 transition-all text-left"
-                                        >
+                                        <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className="group relative h-64 rounded-2xl overflow-hidden border border-slate-800 hover:border-slate-600 transition-all text-left">
                                             <div className={`absolute inset-0 bg-gradient-to-br ${cat.color} opacity-10 group-hover:opacity-20 transition-opacity`}></div>
                                             <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px] group-hover:backdrop-blur-none transition-all"></div>
-                                            
                                             <div className="relative p-8 h-full flex flex-col items-center justify-center text-center space-y-4">
-                                                <div className="p-4 bg-slate-900 rounded-full border border-slate-700 group-hover:scale-110 transition-transform">
-                                                    <cat.icon size={32} className="text-slate-200" />
-                                                </div>
+                                                <div className="p-4 bg-slate-900 rounded-full border border-slate-700 group-hover:scale-110 transition-transform"><cat.icon size={32} className="text-slate-200" /></div>
                                                 <h4 className="text-2xl font-bold text-white group-hover:text-cyan-400 transition-colors">{cat.label}</h4>
-                                                <p className="text-sm text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
-                                                    {cat.desc}
-                                                </p>
+                                                <p className="text-sm text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">{cat.desc}</p>
                                             </div>
                                         </button>
                                     ))}
                                 </div>
                             </div>
                         ) : (
-                            // --- SPECIFIC CATEGORY VIEW ---
                             <div className="space-y-8 animate-fade-in">
-                                <div className="flex items-center justify-between mb-8 border-b border-slate-800 pb-4">
-                                    <div className="flex items-center gap-4">
-                                        <button 
-                                            onClick={() => setActiveCategory(null)}
-                                            className="p-2 rounded-full hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
-                                        >
-                                            <ArrowLeft size={24} />
-                                        </button>
-                                        <div>
-                                            <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-                                                {currentCategoryData?.icon && <currentCategoryData.icon size={24} className="text-cyan-500"/>}
-                                                {currentCategoryData?.label}
-                                            </h3>
-                                            <p className="text-sm text-slate-500">{t.showProjectList} {currentCategoryData?.label}</p>
+                                <div className="flex flex-col gap-6 border-b border-slate-800 pb-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <button onClick={() => setActiveCategory(null)} className="p-2 rounded-full hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"><ArrowLeft size={24} /></button>
+                                            <div>
+                                                <h3 className="text-2xl font-bold text-white flex items-center gap-2">{currentCategoryData?.icon && <currentCategoryData.icon size={24} className="text-cyan-500"/>}{currentCategoryData?.label}</h3>
+                                                <p className="text-sm text-slate-500">{t.showProjectList} {currentCategoryData?.label}</p>
+                                            </div>
                                         </div>
+                                        {isEditing && (
+                                            <button onClick={addProject} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg font-medium transition shadow-lg shadow-cyan-500/20"><Plus size={18} /> {t.addProject}</button>
+                                        )}
                                     </div>
-                                    {isEditing && (
-                                        <button onClick={addProject} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg font-medium transition shadow-lg shadow-cyan-500/20">
-                                            <Plus size={18} /> {t.addProject}
-                                        </button>
+
+                                    {/* --- FILTER BUTTONS --- */}
+                                    {uniqueSubCategories.length > 0 && (
+                                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+                                            <span className="text-xs text-slate-500 mr-2 uppercase font-bold tracking-wider">Filter:</span>
+                                            <button 
+                                                onClick={() => setActiveFilter('All')}
+                                                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap border ${activeFilter === 'All' ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'}`}
+                                            >
+                                                {t.all}
+                                            </button>
+                                            {uniqueSubCategories.map((cat, idx) => (
+                                                <button 
+                                                    key={idx}
+                                                    onClick={() => setActiveFilter(cat)}
+                                                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap border ${activeFilter === cat ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'}`}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {data.projects
-                                        .filter(p => p.category === activeCategory)
-                                        .map((project) => {
-                                            const { type: videoType, id: videoId } = getVideoInfo(project.videoUrl);
-                                            return (
-                                                <div key={project.id} className="bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800 hover:border-cyan-500/50 transition-all group flex flex-col">
-                                                    <div className="relative aspect-video bg-black">
-                                                        {project.type === 'video' && videoId ? (
-                                                            <iframe
-                                                                className="w-full h-full"
-                                                                src={videoType === 'youtube' 
-                                                                    ? `https://www.youtube.com/embed/${videoId}` 
-                                                                    : `https://www.tiktok.com/embed/v2/${videoId}`
-                                                                }
-                                                                title={project.title}
-                                                                frameBorder="0"
-                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                allowFullScreen
-                                                            ></iframe>
-                                                        ) : (
-                                                            <img src={project.image} alt={project.title} className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://via.placeholder.com/600x400'}/>
-                                                        )}
-                                                        
-                                                        {isEditing && (
-                                                            <button onClick={() => deleteItem("projects", project.id)} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 z-10"><Trash2 size={16}/></button>
-                                                        )}
-                                                    </div>
-                                                    <div className="p-5 flex-1 flex flex-col">
-                                                        {isEditing ? (
-                                                            <div className="space-y-3 flex-1">
-                                                                <div className="flex gap-2 text-xs">
-                                                                    <button onClick={() => updateItem("projects", project.id, 'type', 'image')} className={`flex-1 py-1 rounded ${project.type === 'image' ? 'bg-cyan-600' : 'bg-slate-700'}`}>{t.photo}</button>
-                                                                    <button onClick={() => updateItem("projects", project.id, 'type', 'video')} className={`flex-1 py-1 rounded ${project.type === 'video' ? 'bg-red-600' : 'bg-slate-700'}`}>{t.video}</button>
-                                                                </div>
-                                                                {project.type === 'image' ? (
-                                                                    <input value={project.image} onChange={(e) => updateItem("projects", project.id, 'image', e.target.value)} placeholder={t.ph_imgUrl} className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
-                                                                ) : (
-                                                                    <input value={project.videoUrl} onChange={(e) => updateItem("projects", project.id, 'videoUrl', e.target.value)} placeholder={t.ph_vidUrl} className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
-                                                                )}
-                                                                
-                                                                {/* Dynamic Project Title */}
-                                                                <div className="relative">
-                                                                    <input value={getContent(project, 'title')} onChange={(e) => updateItem("projects", project.id, 'title', e.target.value)} placeholder={t.ph_projTitle} className="w-full font-bold bg-transparent border-b border-slate-700 pr-8"/>
-                                                                    <span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span>
-                                                                </div>
+                                    {filteredProjects.map((project) => {
+                                        const { type: videoType, id: videoId } = getVideoInfo(project.videoUrl);
+                                        return (
+                                            <div key={project.id} className="bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800 hover:border-cyan-500/50 transition-all group flex flex-col">
+                                                <div className="relative aspect-video bg-black">
+                                                    {/* Badge Category (View Only) */}
+                                                    {!isEditing && project.subCategory && (
+                                                        <span className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur text-xs font-bold px-2 py-1 rounded text-cyan-300 border border-slate-700">
+                                                            {project.subCategory}
+                                                        </span>
+                                                    )}
 
-                                                                {/* Dynamic Project Description */}
-                                                                <div className="relative">
-                                                                    <textarea value={getContent(project, 'description')} onChange={(e) => updateItem("projects", project.id, 'description', e.target.value)} placeholder={t.ph_desc} className="w-full text-xs bg-transparent border border-slate-700 p-1 rounded h-16"/>
-                                                                    <span className="absolute right-0 top-1 text-xs opacity-50 bg-slate-800 px-1">{lang.toUpperCase()}</span>
-                                                                </div>
-
-                                                                <input value={project.link} onChange={(e) => updateItem("projects", project.id, 'link', e.target.value)} placeholder={t.ph_link} className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
-                                                            </div>
-                                                        ) : (
-                                                            <>
-                                                                <div className="flex justify-between items-start mb-2">
-                                                                    <h4 className="font-bold text-lg group-hover:text-cyan-400 transition-colors">{getContent(project, 'title')}</h4>
-                                                                    {project.type === 'video' ? <Youtube size={18} className="text-red-500"/> : <ImageIcon size={18} className="text-cyan-400"/>}
-                                                                </div>
-                                                                <p className="text-slate-400 text-sm mb-4 flex-1 line-clamp-3">{getContent(project, 'description')}</p>
-                                                                <a href={project.link} target="_blank" className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-white mt-auto">{t.view} <ExternalLink size={14}/></a>
-                                                            </>
-                                                        )}
-                                                    </div>
+                                                    {project.type === 'video' && videoId ? (
+                                                        <iframe className="w-full h-full" src={videoType === 'youtube' ? `https://www.youtube.com/embed/${videoId}` : `https://www.tiktok.com/embed/v2/${videoId}`} title={project.title} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
+                                                    ) : (
+                                                        <img src={project.image} alt={project.title} className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://via.placeholder.com/600x400'}/>
+                                                    )}
+                                                    {isEditing && <button onClick={() => deleteItem("projects", project.id)} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 z-10"><Trash2 size={16}/></button>}
                                                 </div>
-                                            );
-                                        })}
-                                    {data.projects.filter(p => p.category === activeCategory).length === 0 && (
+                                                <div className="p-5 flex-1 flex flex-col">
+                                                    {isEditing ? (
+                                                        <div className="space-y-3 flex-1">
+                                                            <div className="flex gap-2 text-xs">
+                                                                <button onClick={() => updateItem("projects", project.id, 'type', 'image')} className={`flex-1 py-1 rounded ${project.type === 'image' ? 'bg-cyan-600' : 'bg-slate-700'}`}>{t.photo}</button>
+                                                                <button onClick={() => updateItem("projects", project.id, 'type', 'video')} className={`flex-1 py-1 rounded ${project.type === 'video' ? 'bg-red-600' : 'bg-slate-700'}`}>{t.video}</button>
+                                                            </div>
+                                                            {project.type === 'image' ? (
+                                                                <input value={project.image} onChange={(e) => updateItem("projects", project.id, 'image', e.target.value)} placeholder={t.ph_imgUrl} className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                            ) : (
+                                                                <input value={project.videoUrl} onChange={(e) => updateItem("projects", project.id, 'videoUrl', e.target.value)} placeholder={t.ph_vidUrl} className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                            )}
+                                                            
+                                                            {/* INPUT KATEGORI DINAMIS */}
+                                                            <div>
+                                                                <label className="text-[10px] text-cyan-400 font-bold uppercase tracking-wide flex items-center gap-1 mb-1"><Tag size={10}/> {t.categoryLabel}</label>
+                                                                <input value={project.subCategory || ""} onChange={(e) => updateItem("projects", project.id, 'subCategory', e.target.value)} placeholder={t.ph_subCat} className="w-full text-sm bg-slate-800 border border-slate-700 p-2 rounded text-white focus:border-cyan-500 outline-none"/>
+                                                            </div>
+
+                                                            <div className="relative">
+                                                                <input value={getContent(project, 'title')} onChange={(e) => updateItem("projects", project.id, 'title', e.target.value)} placeholder={t.ph_projTitle} className="w-full font-bold bg-transparent border-b border-slate-700 pr-8"/>
+                                                                <span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span>
+                                                            </div>
+                                                            <div className="relative">
+                                                                <textarea value={getContent(project, 'description')} onChange={(e) => updateItem("projects", project.id, 'description', e.target.value)} placeholder={t.ph_desc} className="w-full text-xs bg-transparent border border-slate-700 p-1 rounded h-16"/>
+                                                                <span className="absolute right-0 top-1 text-xs opacity-50 bg-slate-800 px-1">{lang.toUpperCase()}</span>
+                                                            </div>
+                                                            <input value={project.link} onChange={(e) => updateItem("projects", project.id, 'link', e.target.value)} placeholder={t.ph_link} className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <h4 className="font-bold text-lg group-hover:text-cyan-400 transition-colors">{getContent(project, 'title')}</h4>
+                                                                {project.type === 'video' ? <Youtube size={18} className="text-red-500"/> : <ImageIcon size={18} className="text-cyan-400"/>}
+                                                            </div>
+                                                            <p className="text-slate-400 text-sm mb-4 flex-1 line-clamp-3">{getContent(project, 'description')}</p>
+                                                            <a href={project.link} target="_blank" className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-white mt-auto">{t.view} <ExternalLink size={14}/></a>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {filteredProjects.length === 0 && (
                                         <div className="col-span-full text-center py-20 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
                                             <p>{t.noProjects}</p>
                                             {isEditing && <p className="text-sm">{t.clickAdd}</p>}
@@ -730,13 +664,8 @@
                     {/* Footer */}
                     <footer className="max-w-6xl mx-auto px-4 mt-20 py-8 border-t border-slate-800 flex justify-between items-center text-slate-600 text-sm">
                         <p>&copy; {new Date().getFullYear()} {data.profile.name}. All rights reserved.</p>
-                        <button 
-                            onClick={handleAuthAction}
-                            className={`flex items-center gap-2 px-3 py-1 rounded transition-colors ${isAuthenticated ? 'text-green-500 hover:bg-green-500/10' : 'text-slate-600 hover:text-slate-400'}`}
-                            title={isAuthenticated ? t.logout : "Login Admin"}
-                        >
-                            {isAuthenticated ? <LogOut size={14} /> : <Lock size={14} />}
-                            {isAuthenticated ? t.logout : t.admin}
+                        <button onClick={handleAuthAction} className={`flex items-center gap-2 px-3 py-1 rounded transition-colors ${isAuthenticated ? 'text-green-500 hover:bg-green-500/10' : 'text-slate-600 hover:text-slate-400'}`} title={isAuthenticated ? t.logout : "Login Admin"}>
+                            {isAuthenticated ? <LogOut size={14} /> : <Lock size={14} />} {isAuthenticated ? t.logout : t.admin}
                         </button>
                     </footer>
                 </div>
