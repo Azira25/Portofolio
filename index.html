@@ -46,7 +46,7 @@
         import { 
             Edit, Save, Plus, Trash2, ExternalLink, Youtube, Image as ImageIcon, 
             X, Check, Mail, Phone, Briefcase, GraduationCap, Cpu, 
-            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Loader2, Cloud, Globe, AlertCircle, Tag
+            Lock, Unlock, MapPin, Video, Palette, Camera, ArrowLeft, LogOut, Loader2, Cloud, Globe, AlertCircle, Tag, ArrowUp
         } from 'lucide-react';
 
         // =================================================================
@@ -89,6 +89,7 @@
                 editingInfo: "Anda sedang mengedit konten Bahasa Indonesia.",
                 all: "Semua",
                 categoryLabel: "Sub-Kategori (Misal: Logo, Poster)",
+                scrollToTop: "Kembali ke Atas",
                 // Categories
                 videography: "Videografi",
                 videography_desc: "Video Youtube, Shorts, dan TikTok.",
@@ -138,6 +139,7 @@
                 editingInfo: "You are editing English content.",
                 all: "All",
                 categoryLabel: "Sub-Category (Ex: Logo, Poster)",
+                scrollToTop: "Scroll to Top",
                 // Categories
                 videography: "Videography",
                 videography_desc: "Youtube Videos, Shorts, and TikTok.",
@@ -199,11 +201,12 @@
             const [isLoading, setIsLoading] = useState(true);
             const [isSaving, setIsSaving] = useState(false);
             const [activeCategory, setActiveCategory] = useState(null); 
-            // New State for Sub-Category Filter
             const [activeFilter, setActiveFilter] = useState('All');
-
             const [data, setData] = useState(defaultData);
             const [newSkillInput, setNewSkillInput] = useState("");
+            
+            // --- STATE FOR SCROLL TO TOP ---
+            const [showScrollTop, setShowScrollTop] = useState(false);
             
             // Language
             const [lang, setLang] = useState(() => localStorage.getItem('portfolio_lang') || 'id');
@@ -224,7 +227,7 @@
                 return obj[key] || "";
             };
 
-            // Listener
+            // --- EFFECTS ---
             useEffect(() => {
                 const docRef = doc(db, "portfolio", DOC_ID);
                 const unsubscribe = onSnapshot(docRef, (docSnap) => {
@@ -246,7 +249,16 @@
                 return () => unsubscribe();
             }, []);
 
-            // Reset filter when changing main category
+            // Scroll Listener
+            useEffect(() => {
+                const handleScroll = () => {
+                    // Show button if scrolled down more than 400px
+                    setShowScrollTop(window.scrollY > 400);
+                };
+                window.addEventListener("scroll", handleScroll);
+                return () => window.removeEventListener("scroll", handleScroll);
+            }, []);
+
             useEffect(() => {
                 setActiveFilter('All');
             }, [activeCategory]);
@@ -275,6 +287,14 @@
                     window.location.href = "login.html";
                 }
             };
+            
+            // Scroll Function
+            const scrollToTop = () => {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            };
 
             // Handlers
             const handleProfileChange = (e) => {
@@ -285,7 +305,6 @@
             };
             
             const updateItem = (listName, id, baseField, value) => {
-                // subCategory tidak perlu _en, satu untuk semua bahasa lebih rapih untuk filtering
                 const translatableFields = ['role', 'degree', 'description', 'title', 'school', 'company']; 
                 const isTranslatable = translatableFields.includes(baseField);
                 const targetField = (lang === 'en' && isTranslatable) ? baseField + '_en' : baseField;
@@ -314,7 +333,7 @@
                 const newProj = { 
                     id: Date.now(), 
                     category: activeCategory, 
-                    subCategory: "", // New Field for Custom Category
+                    subCategory: "", 
                     title: "Proyek Baru", 
                     description: "Deskripsi...", 
                     image: defaultImage, 
@@ -336,19 +355,15 @@
                 setData({ ...data, skills: data.skills.filter((_, i) => i !== index) });
             };
 
-            // --- COMPUTED PROPERTIES FOR FILTERING ---
-            // 1. Get projects for current main category
             const currentProjects = data.projects.filter(p => p.category === activeCategory);
             
-            // 2. Extract unique sub-categories from these projects
             const uniqueSubCategories = useMemo(() => {
                 const subCats = currentProjects
                     .map(p => p.subCategory)
-                    .filter(sub => sub && sub.trim() !== ""); // Filter empty
-                return [...new Set(subCats)].sort(); // Unique and sorted
+                    .filter(sub => sub && sub.trim() !== ""); 
+                return [...new Set(subCats)].sort(); 
             }, [currentProjects]);
 
-            // 3. Filter projects based on active badge
             const filteredProjects = activeFilter === 'All' 
                 ? currentProjects 
                 : currentProjects.filter(p => p.subCategory === activeFilter);
@@ -364,7 +379,7 @@
             if (isLoading) return <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-white gap-4"><div className="loader"></div></div>;
 
             return (
-                <div className="min-h-screen text-slate-100 font-sans selection:bg-cyan-500 selection:text-white pb-20">
+                <div className="min-h-screen text-slate-100 font-sans selection:bg-cyan-500 selection:text-white pb-20 relative">
                     
                     {/* Navbar */}
                     <nav className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800">
@@ -568,32 +583,24 @@
                                     {uniqueSubCategories.length > 0 && (
                                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
                                             <span className="text-xs text-slate-500 mr-2 uppercase font-bold tracking-wider">Filter:</span>
-                                            <button 
-                                                onClick={() => setActiveFilter('All')}
-                                                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap border ${activeFilter === 'All' ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'}`}
-                                            >
-                                                {t.all}
-                                            </button>
+                                            <button onClick={() => setActiveFilter('All')} className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap border ${activeFilter === 'All' ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'}`}>{t.all}</button>
                                             {uniqueSubCategories.map((cat, idx) => (
-                                                <button 
-                                                    key={idx}
-                                                    onClick={() => setActiveFilter(cat)}
-                                                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap border ${activeFilter === cat ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'}`}
-                                                >
-                                                    {cat}
-                                                </button>
+                                                <button key={idx} onClick={() => setActiveFilter(cat)} className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap border ${activeFilter === cat ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'}`}>{cat}</button>
                                             ))}
                                         </div>
                                     )}
                                 </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                
+                                {/* 🔥 DYNAMIC GRID SYSTEM 
+                                    Diubah menjadi minmax(200px, 1fr) agar muat 5 kolom pada layar desktop.
+                                */}
+                                <div className="grid gap-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
                                     {filteredProjects.map((project) => {
                                         const { type: videoType, id: videoId } = getVideoInfo(project.videoUrl);
                                         return (
                                             <div key={project.id} className="bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800 hover:border-cyan-500/50 transition-all group flex flex-col">
                                                 <div className="relative aspect-video bg-black">
-                                                    {/* Badge Category (View Only) */}
+                                                    {/* Badge Category */}
                                                     {!isEditing && project.subCategory && (
                                                         <span className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur text-xs font-bold px-2 py-1 rounded text-cyan-300 border border-slate-700">
                                                             {project.subCategory}
@@ -619,13 +626,10 @@
                                                             ) : (
                                                                 <input value={project.videoUrl} onChange={(e) => updateItem("projects", project.id, 'videoUrl', e.target.value)} placeholder={t.ph_vidUrl} className="w-full text-xs bg-slate-950 border border-slate-700 p-2 rounded text-white"/>
                                                             )}
-                                                            
-                                                            {/* INPUT KATEGORI DINAMIS */}
                                                             <div>
                                                                 <label className="text-[10px] text-cyan-400 font-bold uppercase tracking-wide flex items-center gap-1 mb-1"><Tag size={10}/> {t.categoryLabel}</label>
                                                                 <input value={project.subCategory || ""} onChange={(e) => updateItem("projects", project.id, 'subCategory', e.target.value)} placeholder={t.ph_subCat} className="w-full text-sm bg-slate-800 border border-slate-700 p-2 rounded text-white focus:border-cyan-500 outline-none"/>
                                                             </div>
-
                                                             <div className="relative">
                                                                 <input value={getContent(project, 'title')} onChange={(e) => updateItem("projects", project.id, 'title', e.target.value)} placeholder={t.ph_projTitle} className="w-full font-bold bg-transparent border-b border-slate-700 pr-8"/>
                                                                 <span className="absolute right-0 top-1 text-xs opacity-50">{lang.toUpperCase()}</span>
@@ -668,6 +672,16 @@
                             {isAuthenticated ? <LogOut size={14} /> : <Lock size={14} />} {isAuthenticated ? t.logout : t.admin}
                         </button>
                     </footer>
+
+                    {/* 🔥 TOMBOL SCROLL TO TOP 🔥 */}
+                    <button 
+                        onClick={scrollToTop}
+                        className={`fixed bottom-6 right-6 p-3 rounded-full bg-cyan-600 text-white shadow-lg shadow-cyan-500/30 hover:bg-cyan-500 transition-all transform duration-300 z-50 ${showScrollTop ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'}`}
+                        title={t.scrollToTop}
+                    >
+                        <ArrowUp size={24} />
+                    </button>
+
                 </div>
             );
         }
