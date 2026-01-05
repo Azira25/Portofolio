@@ -1,0 +1,7 @@
+version: 2
+updates:
+  - package-ecosystem: "npm" # Mengecek library di package.json
+    directory: "/"
+    schedule:
+      interval: "weekly" # Mengecek setiap minggu
+    open-pull-requests-limit: 10
