@@ -174,7 +174,7 @@
             if (!url) return { type: null, id: null };
             const ytMatch = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/);
             if (ytMatch && ytMatch[2].length === 11) return { type: 'youtube', id: ytMatch[2] };
-            const ttMatch = url.match(/tiktok\.com\/@.+\/video\/(\d+)/);
+            const ttMatch = url.match(/tiktok\.com\/(?:.*\/video\/|v\/|embed\/v2\/)(\d+)/);
             if (ttMatch && ttMatch[1]) return { type: 'tiktok', id: ttMatch[1] };
             return { type: null, id: null };
         };
@@ -691,4 +691,5 @@
     </script>
 </body>
 </html>
+
 
