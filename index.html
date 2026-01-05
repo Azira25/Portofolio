@@ -608,21 +608,10 @@
                                                     )}
 
                                                     {project.type === 'video' && videoId ? (
-                                                       <iframe 
-                                                        className="w-full h-full" 
-                                                        src={videoType === 'youtube' 
-                                                        ? `https://www.youtube.com/embed/${videoId}` 
-                                                        : `https://www.tiktok.com/embed/v2/${videoId}`
-                                                        } 
-                                                        title={project.title} 
-                                                        frameBorder="0" 
-                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                                        allowFullScreen
-                                                        ></iframe>
-                                                        </div>
-                                                       : (
-                                                        <img src={project.image} alt={project.title} className="w-full h-full object-cover" />
-                                                    }
+                                                        <iframe className="w-full h-full" src={videoType === 'youtube' ? `https://www.youtube.com/embed/${videoId}` : `https://www.tiktok.com/embed/v2/${videoId}`} title={project.title} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
+                                                    ) : (
+                                                        <img src={project.image} alt={project.title} className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://via.placeholder.com/600x400'}/>
+                                                    )}
                                                     {isEditing && <button onClick={() => deleteItem("projects", project.id)} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 z-10"><Trash2 size={16}/></button>}
                                                 </div>
                                                 <div className="p-5 flex-1 flex flex-col">
@@ -702,6 +691,4 @@
     </script>
 </body>
 </html>
-
-
 
